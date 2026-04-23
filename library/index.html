@@ -874,11 +874,15 @@
     if (visible.length === 0) {
       els.songs.hidden = true;
       els.empty.hidden = false;
-      els.emptyMsg.textContent = tab === 'all'
-        ? (isAdmin && searchQuery ? `No songs match "${searchQuery}".` : tr('emptyAll'))
+      // innerHTML for the R&P Music branch so the branded Chicle markup
+      // renders. Other branches are plain text and safe either way; the
+      // searchQuery value is wrapped via escaping below.
+      const escape = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      els.emptyMsg.innerHTML = tab === 'all'
+        ? (isAdmin && searchQuery ? `No songs match "${escape(searchQuery)}".` : escape(tr('emptyAll')))
         : tab === 'rpmusic'
-          ? 'No R&P Music songs yet.'
-          : tr('emptyProfile', {name: tab});
+          ? 'No <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span> songs yet.'
+          : escape(tr('emptyProfile', {name: tab}));
       return;
     }
     els.empty.hidden = true;

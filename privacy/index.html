@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy — R&P Music</title>
 <link rel="icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Chicle&display=swap" rel="stylesheet">
 <style>
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
@@ -13,6 +14,10 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; font-weight: 400; }
+  .brand-logo .r { color: var(--c); }
+  .brand-logo .p { color: var(--g); }
+  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.04em; text-shadow: -1px -1px 0 #a87b00, 1px -1px 0 #a87b00, -1px 1px 0 #a87b00, 1px 1px 0 #a87b00, -1px 0 0 #a87b00, 1px 0 0 #a87b00, 0 -1px 0 #a87b00, 0 1px 0 #a87b00; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .rainbow { display: flex; height: 6px; }
@@ -38,7 +43,7 @@
 <div class="container">
   <a href="/" class="back" data-i18n="backHome">← Back to home</a>
   <h1 data-i18n="pageTitle">Privacy</h1>
-  <p data-i18n="intro">R&amp;P Music is designed for kids and families. We keep things simple.</p>
+  <p data-i18n="intro"><span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span> is designed for kids and families. We keep things simple.</p>
 
   <h2 data-i18n="h_collect">What we collect</h2>
   <p data-i18n="p_collect">No email, name, age, or account needed to use the app. We count anonymous page views via Cloudflare Web Analytics so we can see which songs and features people use — no cookies, no personal information, no cross-site tracking, no advertising.</p>
@@ -62,7 +67,7 @@
 const T = {
   en: {
     pageTitle: "Privacy", backHome: "← Back to home",
-    intro: "R&P Music is designed for kids and families. We keep things simple.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> is designed for kids and families. We keep things simple.",
     h_collect: "What we collect",
     p_collect: "No email, name, age, or account needed to use the app. We count anonymous page views via Cloudflare Web Analytics so we can see which songs and features people use — no cookies, no personal information, no cross-site tracking, no advertising.",
     h_data: "Where your data lives",
@@ -78,7 +83,7 @@ const T = {
   },
   zh: {
     pageTitle: "隐私", backHome: "← 返回首页",
-    intro: "R&P Music 为孩子和家庭而设计。我们保持简单。",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> 为孩子和家庭而设计。我们保持简单。",
     h_collect: "我们收集什么",
     p_collect: "无需邮箱、姓名、年龄或账号即可使用应用。我们通过 Cloudflare Web Analytics 统计匿名页面浏览量，以了解哪些歌曲和功能被使用——不使用 cookie，不收集个人信息，不跨站跟踪，不投放广告。",
     h_data: "你的数据在哪里",
@@ -94,7 +99,7 @@ const T = {
   },
   hi: {
     pageTitle: "गोपनीयता", backHome: "← होम पेज पर वापस",
-    intro: "R&P Music बच्चों और परिवारों के लिए बनाया गया है। हम चीज़ें सरल रखते हैं।",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> बच्चों और परिवारों के लिए बनाया गया है। हम चीज़ें सरल रखते हैं।",
     h_collect: "हम क्या इकट्ठा करते हैं",
     p_collect: "ऐप चलाने के लिए ईमेल, नाम, उम्र या खाते की ज़रूरत नहीं। हम Cloudflare Web Analytics के ज़रिए अनाम पेज विज़िट गिनते हैं ताकि देख सकें कौन‑से गाने और फ़ीचर इस्तेमाल हो रहे हैं — कोई कुकी नहीं, कोई निजी जानकारी नहीं, कोई क्रॉस‑साइट ट्रैकिंग नहीं, कोई विज्ञापन नहीं।",
     h_data: "आपका डेटा कहाँ रहता है",
@@ -110,7 +115,7 @@ const T = {
   },
   es: {
     pageTitle: "Privacidad", backHome: "← Volver al inicio",
-    intro: "R&P Music está diseñado para niños y familias. Lo mantenemos simple.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> está diseñado para niños y familias. Lo mantenemos simple.",
     h_collect: "Qué recopilamos",
     p_collect: "Sin correo, nombre, edad ni cuenta para usar la app. Contamos visitas anónimas con Cloudflare Web Analytics para ver qué canciones y funciones se usan — sin cookies, sin información personal, sin seguimiento entre sitios, sin publicidad.",
     h_data: "Dónde viven tus datos",
@@ -126,7 +131,7 @@ const T = {
   },
   fr: {
     pageTitle: "Confidentialité", backHome: "← Retour à l'accueil",
-    intro: "R&P Music est conçu pour les enfants et les familles. On garde ça simple.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> est conçu pour les enfants et les familles. On garde ça simple.",
     h_collect: "Ce que nous collectons",
     p_collect: "Pas besoin d'email, de nom, d'âge ni de compte pour utiliser l'app. Nous comptons les visites de pages de façon anonyme via Cloudflare Web Analytics pour voir quelles chansons et fonctionnalités sont utilisées — pas de cookies, pas d'informations personnelles, pas de suivi entre sites, pas de publicité.",
     h_data: "Où vivent tes données",
@@ -142,7 +147,7 @@ const T = {
   },
   ar: {
     pageTitle: "الخصوصية", backHome: "← العودة إلى الصفحة الرئيسية",
-    intro: "تم تصميم R&P Music للأطفال والعائلات. نحافظ على البساطة.",
+    intro: "تم تصميم <span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> للأطفال والعائلات. نحافظ على البساطة.",
     h_collect: "ما نجمعه",
     p_collect: "لا حاجة لبريد إلكتروني أو اسم أو عمر أو حساب لاستخدام التطبيق. نحسب مشاهدات الصفحات بشكل مجهول عبر Cloudflare Web Analytics لمعرفة الأغاني والميزات المستخدمة — بدون ملفات ارتباط، بدون معلومات شخصية، بدون تتبّع بين المواقع، بدون إعلانات.",
     h_data: "أين تعيش بياناتك",
@@ -158,7 +163,7 @@ const T = {
   },
   pt: {
     pageTitle: "Privacidade", backHome: "← Voltar para o início",
-    intro: "R&P Music foi feito para crianças e famílias. Mantemos tudo simples.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> foi feito para crianças e famílias. Mantemos tudo simples.",
     h_collect: "O que coletamos",
     p_collect: "Sem e-mail, nome, idade ou conta para usar o app. Contamos visualizações anônimas via Cloudflare Web Analytics para ver quais músicas e recursos são usados — sem cookies, sem informações pessoais, sem rastreamento entre sites, sem publicidade.",
     h_data: "Onde seus dados ficam",
@@ -174,7 +179,7 @@ const T = {
   },
   ru: {
     pageTitle: "Конфиденциальность", backHome: "← Назад на главную",
-    intro: "R&P Music создан для детей и семей. Мы держим всё просто.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> создан для детей и семей. Мы держим всё просто.",
     h_collect: "Что мы собираем",
     p_collect: "Для работы приложения не нужны ни email, ни имя, ни возраст, ни аккаунт. Мы считаем анонимные просмотры страниц через Cloudflare Web Analytics, чтобы видеть, какие песни и функции используются — без cookie, без персональных данных, без кросс‑сайтового отслеживания, без рекламы.",
     h_data: "Где живут ваши данные",
@@ -190,7 +195,7 @@ const T = {
   },
   ja: {
     pageTitle: "プライバシー", backHome: "← ホームに戻る",
-    intro: "R&P Music は子どもと家族のために作られています。シンプルにしています。",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> は子どもと家族のために作られています。シンプルにしています。",
     h_collect: "収集する情報",
     p_collect: "アプリの利用にメール、名前、年齢、アカウントは必要ありません。Cloudflare Web Analytics で匿名のページ閲覧数を集計し、どの曲や機能が使われているかを把握しています — クッキーなし、個人情報なし、サイト間トラッキングなし、広告なし。",
     h_data: "あなたのデータはどこに",
@@ -206,7 +211,7 @@ const T = {
   },
   bn: {
     pageTitle: "গোপনীয়তা", backHome: "← হোমে ফিরুন",
-    intro: "R&P Music বাচ্চাদের ও পরিবারের জন্য তৈরি। আমরা সহজ রাখি।",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> বাচ্চাদের ও পরিবারের জন্য তৈরি। আমরা সহজ রাখি।",
     h_collect: "আমরা কী সংগ্রহ করি",
     p_collect: "অ্যাপটি ব্যবহার করতে ইমেইল, নাম, বয়স বা অ্যাকাউন্টের প্রয়োজন নেই। কোন গান ও ফিচার ব্যবহৃত হচ্ছে তা দেখতে আমরা Cloudflare Web Analytics দিয়ে বেনামী পেজ ভিজিট গণনা করি — কোনো কুকি নেই, কোনো ব্যক্তিগত তথ্য নেই, কোনো ক্রস‑সাইট ট্র্যাকিং নেই, কোনো বিজ্ঞাপন নেই।",
     h_data: "আপনার ডেটা কোথায় থাকে",
@@ -222,7 +227,7 @@ const T = {
   },
   ur: {
     pageTitle: "رازداری", backHome: "← ہوم پیج پر واپس",
-    intro: "R&P Music بچوں اور خاندانوں کے لیے بنایا گیا ہے۔ ہم چیزیں سادہ رکھتے ہیں۔",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> بچوں اور خاندانوں کے لیے بنایا گیا ہے۔ ہم چیزیں سادہ رکھتے ہیں۔",
     h_collect: "ہم کیا جمع کرتے ہیں",
     p_collect: "ایپ استعمال کرنے کے لیے ای میل، نام، عمر یا اکاؤنٹ کی ضرورت نہیں۔ ہم Cloudflare Web Analytics کے ذریعے گمنام پیج ویوز گنتے ہیں تاکہ دیکھ سکیں کون سے گانے اور فیچرز استعمال ہو رہے ہیں — کوئی کوکیز نہیں، کوئی ذاتی معلومات نہیں، کوئی کراس‑سائٹ ٹریکنگ نہیں، کوئی اشتہارات نہیں۔",
     h_data: "آپ کا ڈیٹا کہاں رہتا ہے",
@@ -238,7 +243,7 @@ const T = {
   },
   ko: {
     pageTitle: "개인정보", backHome: "← 홈으로 돌아가기",
-    intro: "R&P Music은 어린이와 가족을 위해 만들어졌습니다. 간단하게 유지합니다.",
+    intro: "<span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span>은 어린이와 가족을 위해 만들어졌습니다. 간단하게 유지합니다.",
     h_collect: "우리가 수집하는 것",
     p_collect: "앱을 사용하는 데 이메일, 이름, 나이, 계정이 필요 없습니다. 어떤 곡과 기능이 사용되는지 확인하기 위해 Cloudflare Web Analytics로 익명 페이지뷰를 집계합니다 — 쿠키 없음, 개인정보 없음, 사이트 간 추적 없음, 광고 없음.",
     h_data: "당신의 데이터가 있는 곳",
@@ -254,7 +259,7 @@ const T = {
   },
   tl: {
     pageTitle: "Privacy", backHome: "← Bumalik sa home",
-    intro: "Ang R&P Music ay ginawa para sa mga bata at pamilya. Pinananatili naming simple.",
+    intro: "Ang <span class=\"brand-logo\"><span class=\"r\">R</span><span class=\"amp\">&amp;</span><span class=\"p\">P</span> Music</span> ay ginawa para sa mga bata at pamilya. Pinananatili naming simple.",
     h_collect: "Ano ang kinokolekta namin",
     p_collect: "Walang kailangan na email, pangalan, edad, o account para gamitin ang app. Gumagamit kami ng Cloudflare Web Analytics para bilangin ang anonymous na page views — walang cookies, walang personal na impormasyon, walang cross-site tracking, walang advertising.",
     h_data: "Saan nakatira ang data mo",
@@ -277,7 +282,10 @@ if (!T[lang]) lang = "en";
 const dict = T[lang];
 document.querySelectorAll("[data-i18n]").forEach(el => {
   const k = el.getAttribute("data-i18n");
-  if (dict[k] != null) el.textContent = dict[k];
+  // innerHTML so the branded "R&P Music" markup (with Chicle + colored R/P
+  // and gold & outline) renders correctly inside translations. Safe because
+  // all strings in the T dictionary are hardcoded in this file — no user input.
+  if (dict[k] != null) el.innerHTML = dict[k];
 });
 document.documentElement.lang = lang;
 document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
