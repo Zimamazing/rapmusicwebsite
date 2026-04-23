@@ -432,7 +432,7 @@ function StaffLines({ x, width, top }) {
     <line key={i}
       x1={x} y1={t + i * LINE_SPACING}
       x2={x + width} y2={t + i * LINE_SPACING}
-      stroke="#a855f7" strokeWidth={2} />
+      stroke="var(--line-color)" strokeWidth={2} />
   ));
 }
 
@@ -443,13 +443,13 @@ function LedgerLines({ x, y, noteRx, staffTop }) {
   if (y < topLine) {
     for (let ly = topLine - LINE_SPACING; ly >= y - 1; ly -= LINE_SPACING) {
       lines.push(<line key={ly} x1={x - noteRx - 8} y1={ly} x2={x + noteRx + 8} y2={ly}
-        stroke="#a855f7" strokeWidth={2} />);
+        stroke="var(--line-color)" strokeWidth={2} />);
     }
   }
   if (y > bottomLine) {
     for (let ly = bottomLine + LINE_SPACING; ly <= y + 1; ly += LINE_SPACING) {
       lines.push(<line key={ly} x1={x - noteRx - 8} y1={ly} x2={x + noteRx + 8} y2={ly}
-        stroke="#a855f7" strokeWidth={2} />);
+        stroke="var(--line-color)" strokeWidth={2} />);
     }
   }
   return lines;
