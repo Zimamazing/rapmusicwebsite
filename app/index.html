@@ -2880,7 +2880,13 @@ function MusicNotationEditor() {
 
   // Tablet/Desktop layout: everything scales proportionally to fit the screen
   const isTablet = isTouchDevice && !isMobile;
-  const isWidescreen = !isMobile; // tablet or desktop
+  // isWidescreen covers any wide-aspect view: tablet, desktop, AND iPhone in
+  // landscape orientation. Using this flag activates the "fit one measure per
+  // viewport + pan during playback" rendering, which preserves the rhythm-as-
+  // spacing pedagogy (whole note fills whole measure, halves fill half, etc.)
+  // on every wide screen. iPhone in portrait keeps the old scroll-through
+  // mode (narrow viewport, many measures per scroll).
+  const isWidescreen = !isMobile || viewportWidth > viewportHeight;
   // SVG content: fixed viewBox height — staff never moves
   const tabletViewTop = isTablet ? STAFF_TOP - 160 : STAFF_TOP - 120; // more space above staff so it sits closer to the piano below
   // tabletViewH controls the SVG-space height that fits on screen. Smaller
@@ -5316,9 +5322,9 @@ function MusicNotationEditor() {
         touchAction: isMobile ? "pan-x pan-y" : undefined,
       }}>
         <svg ref={svgRef}
-          width={isMobile ? totalWidth * mobileScale * mobileZoom : "100%"}
-          height={isMobile ? mobileViewH * mobileScale * mobileZoom : tabletScoreH}
-          viewBox={isMobile ? `0 ${STAFF_TOP - 70} ${totalWidth / staffScale} ${mobileViewH / staffScale}` : `${tabletViewX} ${tabletViewTop + tabletViewYOffset} ${tabletViewW / staffScale / (isTablet ? (mobileZoom || 1) : 1)} ${tabletViewH / staffScale / (isTablet ? (mobileZoom || 1) : 1)}`}
+          width={!isWidescreen ? totalWidth * mobileScale * mobileZoom : "100%"}
+          height={!isWidescreen ? mobileViewH * mobileScale * mobileZoom : tabletScoreH}
+          viewBox={!isWidescreen ? `0 ${STAFF_TOP - 70} ${totalWidth / staffScale} ${mobileViewH / staffScale}` : `${tabletViewX} ${tabletViewTop + tabletViewYOffset} ${tabletViewW / staffScale / (isTablet ? (mobileZoom || 1) : 1)} ${tabletViewH / staffScale / (isTablet ? (mobileZoom || 1) : 1)}`}
           preserveAspectRatio="none"
           style={{ display: "block", margin: "0 auto", touchAction: (isWidescreen && !draggingNote) ? "none" : (draggingNote ? "none" : "pan-x pan-y") }}
           onClick={handleStaffClick}
