@@ -3451,10 +3451,14 @@ function MusicNotationEditor() {
               for (const p of pitches) next[pianoKeyName(p)] = noteColorMap[p.name] || "#fff";
               return next;
             });
-          } else {
-            // Rest: clear all keys
-            setPressedPianoKeys({});
           }
+          // Rests are silent — they must NOT touch pressedPianoKeys. On grand
+          // staff, a rest on one staff fires at the same instant as an actual
+          // note on the other staff; if the rest cleared all keys, it would
+          // wipe the real note's highlight right after it lit up (the bug
+          // behind "F2 plays but its key doesn't light up" at the end of
+          // Happy Birthday). Each real note already clears its own key via
+          // its turn-off timer below.
         }, noteTime * 1000));
         timeouts.push(setTimeout(() => {
           setPlayingIdx(prev => (prev.measure === mi && prev.note === ni) ? { measure: -1, note: -1 } : prev);
