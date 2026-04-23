@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy — R&P Music</title>
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
+    --g: #3b82f6; --a: #a855f7; --b: #ec4899;
+    --bg: #fffdf9; --text: #1a1a1a; --text2: #666; --border: #e5e5e5; --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .rainbow { display: flex; height: 6px; }
+  .rainbow span { flex: 1; }
+  .rainbow span:nth-child(1) { background: var(--c); }
+  .rainbow span:nth-child(2) { background: var(--d); }
+  .rainbow span:nth-child(3) { background: var(--e); }
+  .rainbow span:nth-child(4) { background: var(--f); }
+  .rainbow span:nth-child(5) { background: var(--g); }
+  .rainbow span:nth-child(6) { background: var(--a); }
+  .rainbow span:nth-child(7) { background: var(--b); }
+  .container { max-width: 680px; margin: 0 auto; padding: 32px 24px 80px; }
+  .back { color: var(--text2); font-size: 14px; }
+  .back:hover { color: var(--text); }
+  h1 { font-size: clamp(30px, 4.5vw, 40px); font-weight: 800; margin: 28px 0 20px; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; font-weight: 700; margin: 28px 0 6px; }
+  p { margin-bottom: 10px; color: var(--text); }
+  .last-updated { color: var(--text2); font-size: 13px; margin-top: 36px; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="rainbow"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div class="container">
+  <a href="/" class="back" data-i18n="backHome">← Back to home</a>
+  <h1 data-i18n="pageTitle">Privacy</h1>
+  <p data-i18n="intro">R&amp;P Music is designed for kids and families. We keep things simple.</p>
+
+  <h2 data-i18n="h_collect">What we collect</h2>
+  <p data-i18n="p_collect">Nothing. No email, no name, no age, no account required to use the app. No analytics, no tracking, no advertising cookies.</p>
+
+  <h2 data-i18n="h_data">Where your data lives</h2>
+  <p data-i18n="p_data">Profiles, hearted songs, and settings are stored only in your browser on your own device. We never see them. They never leave your device.</p>
+
+  <h2 data-i18n="h_email">If you email us</h2>
+  <p><span data-i18n="p_email_pre">When you write to</span> <a href="mailto:readandplaymusicapp@gmail.com">readandplaymusicapp@gmail.com</a><span data-i18n="p_email_post">, we only use your message to reply. We don't share it with anyone.</span></p>
+
+  <h2 data-i18n="h_coppa">Children's privacy (COPPA)</h2>
+  <p data-i18n="p_coppa">This app does not knowingly collect personal information from children under 13. If you're a parent and have questions, please email us.</p>
+
+  <h2 data-i18n="h_changes">Changes</h2>
+  <p data-i18n="p_changes">If this policy ever changes, this page will be updated.</p>
+
+  <p class="last-updated" data-i18n="updated">Last updated: April 2026</p>
+</div>
+
+<script>
+const T = {
+  en: {
+    pageTitle: "Privacy", backHome: "← Back to home",
+    intro: "R&P Music is designed for kids and families. We keep things simple.",
+    h_collect: "What we collect",
+    p_collect: "Nothing. No email, no name, no age, no account required to use the app. No analytics, no tracking, no advertising cookies.",
+    h_data: "Where your data lives",
+    p_data: "Profiles, hearted songs, and settings are stored only in your browser on your own device. We never see them. They never leave your device.",
+    h_email: "If you email us",
+    p_email_pre: "When you write to",
+    p_email_post: ", we only use your message to reply. We don't share it with anyone.",
+    h_coppa: "Children's privacy (COPPA)",
+    p_coppa: "This app does not knowingly collect personal information from children under 13. If you're a parent and have questions, please email us.",
+    h_changes: "Changes",
+    p_changes: "If this policy ever changes, this page will be updated.",
+    updated: "Last updated: April 2026"
+  },
+  zh: {
+    pageTitle: "隐私", backHome: "← 返回首页",
+    intro: "R&P Music 为孩子和家庭而设计。我们保持简单。",
+    h_collect: "我们收集什么",
+    p_collect: "什么都不收集。不需要邮箱、姓名、年龄或账号。没有分析、跟踪或广告 cookie。",
+    h_data: "你的数据在哪里",
+    p_data: "个人资料、喜爱的歌曲和设置只存储在你自己设备的浏览器中。我们从不看到它们，它们永远不会离开你的设备。",
+    h_email: "当你给我们发邮件",
+    p_email_pre: "当你写信到",
+    p_email_post: "，我们只用你的消息来回复你。我们不会与任何人分享。",
+    h_coppa: "儿童隐私（COPPA）",
+    p_coppa: "本应用不会故意收集 13 岁以下儿童的个人信息。如果你是家长并有疑问，请发邮件给我们。",
+    h_changes: "变更",
+    p_changes: "如果此政策有变更，本页将会更新。",
+    updated: "最后更新：2026 年 4 月"
+  },
+  hi: {
+    pageTitle: "गोपनीयता", backHome: "← होम पेज पर वापस",
+    intro: "R&P Music बच्चों और परिवारों के लिए बनाया गया है। हम चीज़ें सरल रखते हैं।",
+    h_collect: "हम क्या इकट्ठा करते हैं",
+    p_collect: "कुछ भी नहीं। न ईमेल, न नाम, न उम्र, न खाता। न कोई एनालिटिक्स, न ट्रैकिंग, न विज्ञापन कुकी।",
+    h_data: "आपका डेटा कहाँ रहता है",
+    p_data: "प्रोफ़ाइल, पसंदीदा गाने और सेटिंग्स केवल आपके अपने डिवाइस के ब्राउज़र में संग्रहीत हैं। हम उन्हें कभी नहीं देखते। वे आपके डिवाइस से कभी बाहर नहीं जाते।",
+    h_email: "अगर आप हमें ईमेल करें",
+    p_email_pre: "जब आप",
+    p_email_post: " पर लिखते हैं, तो हम आपके संदेश का उपयोग केवल जवाब देने के लिए करते हैं। हम इसे किसी के साथ साझा नहीं करते।",
+    h_coppa: "बच्चों की गोपनीयता (COPPA)",
+    p_coppa: "यह ऐप जानबूझकर 13 साल से कम उम्र के बच्चों की व्यक्तिगत जानकारी नहीं इकट्ठा करता। अगर आप अभिभावक हैं और कोई सवाल है, तो कृपया ईमेल करें।",
+    h_changes: "बदलाव",
+    p_changes: "अगर यह नीति कभी बदलेगी, तो यह पेज अपडेट किया जाएगा।",
+    updated: "आख़िरी अपडेट: अप्रैल 2026"
+  },
+  es: {
+    pageTitle: "Privacidad", backHome: "← Volver al inicio",
+    intro: "R&P Music está diseñado para niños y familias. Lo mantenemos simple.",
+    h_collect: "Qué recopilamos",
+    p_collect: "Nada. Ni correo, ni nombre, ni edad, ni cuenta. Sin analítica, sin seguimiento, sin cookies publicitarias.",
+    h_data: "Dónde viven tus datos",
+    p_data: "Los perfiles, canciones favoritas y ajustes se guardan solo en tu navegador, en tu propio dispositivo. Nosotros nunca los vemos. Nunca salen de tu dispositivo.",
+    h_email: "Si nos escribes",
+    p_email_pre: "Cuando escribes a",
+    p_email_post: ", solo usamos tu mensaje para responder. No lo compartimos con nadie.",
+    h_coppa: "Privacidad de los niños (COPPA)",
+    p_coppa: "Esta app no recopila a sabiendas información personal de niños menores de 13 años. Si eres madre/padre y tienes preguntas, escríbenos.",
+    h_changes: "Cambios",
+    p_changes: "Si esta política cambia, esta página se actualizará.",
+    updated: "Última actualización: abril de 2026"
+  },
+  fr: {
+    pageTitle: "Confidentialité", backHome: "← Retour à l'accueil",
+    intro: "R&P Music est conçu pour les enfants et les familles. On garde ça simple.",
+    h_collect: "Ce que nous collectons",
+    p_collect: "Rien. Pas d'email, pas de nom, pas d'âge, pas de compte. Aucune analyse, aucun suivi, aucun cookie publicitaire.",
+    h_data: "Où vivent tes données",
+    p_data: "Les profils, les chansons favorites et les réglages sont stockés uniquement dans ton navigateur, sur ton appareil. Nous ne les voyons jamais. Ils ne quittent jamais ton appareil.",
+    h_email: "Si tu nous écris",
+    p_email_pre: "Quand tu écris à",
+    p_email_post: ", nous utilisons ton message uniquement pour répondre. Nous ne le partageons avec personne.",
+    h_coppa: "Protection des enfants (COPPA)",
+    p_coppa: "Cette app ne collecte pas sciemment d'informations personnelles sur des enfants de moins de 13 ans. Si tu es parent et as des questions, écris-nous.",
+    h_changes: "Modifications",
+    p_changes: "Si cette politique change un jour, cette page sera mise à jour.",
+    updated: "Dernière mise à jour : avril 2026"
+  },
+  ar: {
+    pageTitle: "الخصوصية", backHome: "← العودة إلى الصفحة الرئيسية",
+    intro: "تم تصميم R&P Music للأطفال والعائلات. نحافظ على البساطة.",
+    h_collect: "ما نجمعه",
+    p_collect: "لا شيء. لا بريد إلكتروني، لا اسم، لا عمر، لا حساب. لا تحليلات، لا تتبّع، لا ملفات ارتباط إعلانية.",
+    h_data: "أين تعيش بياناتك",
+    p_data: "الملفات الشخصية والأغاني المفضّلة والإعدادات تُحفظ فقط في متصفّحك على جهازك. نحن لا نراها أبداً. ولا تغادر جهازك أبداً.",
+    h_email: "إذا راسلتنا",
+    p_email_pre: "عندما تكتب إلى",
+    p_email_post: "، نستخدم رسالتك فقط للردّ. ولا نشاركها مع أحد.",
+    h_coppa: "خصوصية الأطفال (COPPA)",
+    p_coppa: "لا يجمع هذا التطبيق عن علم معلومات شخصية من أطفال دون 13 سنة. إذا كنت والداً أو والدة ولديك أسئلة، راسلنا.",
+    h_changes: "التغييرات",
+    p_changes: "إذا تغيّرت هذه السياسة يوماً، ستُحدَّث هذه الصفحة.",
+    updated: "آخر تحديث: أبريل 2026"
+  },
+  pt: {
+    pageTitle: "Privacidade", backHome: "← Voltar para o início",
+    intro: "R&P Music foi feito para crianças e famílias. Mantemos tudo simples.",
+    h_collect: "O que coletamos",
+    p_collect: "Nada. Nem e-mail, nem nome, nem idade, nem conta. Sem análises, sem rastreamento, sem cookies de publicidade.",
+    h_data: "Onde seus dados ficam",
+    p_data: "Perfis, músicas favoritas e ajustes ficam apenas no seu navegador, no seu próprio dispositivo. Nós nunca os vemos. Eles nunca saem do seu dispositivo.",
+    h_email: "Se você nos escrever",
+    p_email_pre: "Quando você escreve para",
+    p_email_post: ", usamos sua mensagem apenas para responder. Não a compartilhamos com ninguém.",
+    h_coppa: "Privacidade das crianças (COPPA)",
+    p_coppa: "Este app não coleta intencionalmente informações pessoais de crianças menores de 13 anos. Se você é mãe/pai e tem dúvidas, escreva para nós.",
+    h_changes: "Alterações",
+    p_changes: "Se esta política mudar, esta página será atualizada.",
+    updated: "Última atualização: abril de 2026"
+  },
+  ru: {
+    pageTitle: "Конфиденциальность", backHome: "← Назад на главную",
+    intro: "R&P Music создан для детей и семей. Мы держим всё просто.",
+    h_collect: "Что мы собираем",
+    p_collect: "Ничего. Ни email, ни имени, ни возраста, ни аккаунта. Никакой аналитики, никакой слежки, никаких рекламных cookie.",
+    h_data: "Где живут ваши данные",
+    p_data: "Профили, любимые песни и настройки хранятся только в вашем браузере на вашем устройстве. Мы их никогда не видим. Они никогда не покидают ваше устройство.",
+    h_email: "Если вы нам пишете",
+    p_email_pre: "Когда вы пишете на",
+    p_email_post: ", мы используем ваше сообщение только для ответа. Мы ни с кем им не делимся.",
+    h_coppa: "Конфиденциальность детей (COPPA)",
+    p_coppa: "Это приложение сознательно не собирает личные данные детей младше 13 лет. Если вы родитель и у вас есть вопросы, напишите нам.",
+    h_changes: "Изменения",
+    p_changes: "Если эта политика изменится, эта страница будет обновлена.",
+    updated: "Последнее обновление: апрель 2026"
+  },
+  ja: {
+    pageTitle: "プライバシー", backHome: "← ホームに戻る",
+    intro: "R&P Music は子どもと家族のために作られています。シンプルにしています。",
+    h_collect: "収集する情報",
+    p_collect: "何も収集しません。メール、名前、年齢、アカウントは不要です。解析もトラッキングも広告クッキーもありません。",
+    h_data: "あなたのデータはどこに",
+    p_data: "プロフィール、お気に入りの曲、設定はすべてあなたのデバイスのブラウザ内にだけ保存されます。私たちは見ることができず、データはあなたのデバイスから出ません。",
+    h_email: "メールをいただいた場合",
+    p_email_pre: "あなたが",
+    p_email_post: " にご連絡くださった場合、メッセージは返信のためだけに使います。誰とも共有しません。",
+    h_coppa: "子どものプライバシー（COPPA）",
+    p_coppa: "このアプリは 13 歳未満の子どもの個人情報を意図的に収集しません。保護者の方でご質問があれば、メールでお知らせください。",
+    h_changes: "変更",
+    p_changes: "このポリシーが変わった場合、このページが更新されます。",
+    updated: "最終更新：2026 年 4 月"
+  },
+  bn: {
+    pageTitle: "গোপনীয়তা", backHome: "← হোমে ফিরুন",
+    intro: "R&P Music বাচ্চাদের ও পরিবারের জন্য তৈরি। আমরা সহজ রাখি।",
+    h_collect: "আমরা কী সংগ্রহ করি",
+    p_collect: "কিছুই না। ইমেইল নেই, নাম নেই, বয়স নেই, অ্যাকাউন্ট নেই। কোনো অ্যানালিটিক্স, ট্র্যাকিং বা বিজ্ঞাপন কুকি নেই।",
+    h_data: "আপনার ডেটা কোথায় থাকে",
+    p_data: "প্রোফাইল, প্রিয় গান ও সেটিংস শুধু আপনার নিজের ডিভাইসের ব্রাউজারে সংরক্ষিত থাকে। আমরা কখনো দেখি না। এগুলো আপনার ডিভাইস ছেড়ে যায় না।",
+    h_email: "আপনি আমাদের ইমেইল করলে",
+    p_email_pre: "যখন আপনি",
+    p_email_post: " ঠিকানায় লেখেন, আমরা আপনার বার্তা শুধু জবাব দিতে ব্যবহার করি। কারো সাথে শেয়ার করি না।",
+    h_coppa: "শিশুদের গোপনীয়তা (COPPA)",
+    p_coppa: "এই অ্যাপ 13 বছরের কম বয়সী শিশুদের ব্যক্তিগত তথ্য জেনে-শুনে সংগ্রহ করে না। আপনি অভিভাবক হলে ও প্রশ্ন থাকলে ইমেইল করুন।",
+    h_changes: "পরিবর্তন",
+    p_changes: "এই নীতি যদি কখনো বদলায়, এই পেজ আপডেট হবে।",
+    updated: "সর্বশেষ আপডেট: এপ্রিল 2026"
+  },
+  ur: {
+    pageTitle: "رازداری", backHome: "← ہوم پیج پر واپس",
+    intro: "R&P Music بچوں اور خاندانوں کے لیے بنایا گیا ہے۔ ہم چیزیں سادہ رکھتے ہیں۔",
+    h_collect: "ہم کیا جمع کرتے ہیں",
+    p_collect: "کچھ نہیں۔ نہ ای میل، نہ نام، نہ عمر، نہ اکاؤنٹ۔ کوئی تجزیات، ٹریکنگ، یا اشتہاری کوکیز نہیں۔",
+    h_data: "آپ کا ڈیٹا کہاں رہتا ہے",
+    p_data: "پروفائلز، پسندیدہ گانے اور سیٹنگز صرف آپ کے اپنے آلے کے براؤزر میں محفوظ ہیں۔ ہم انہیں کبھی نہیں دیکھتے۔ وہ آپ کے آلے سے کبھی باہر نہیں جاتے۔",
+    h_email: "اگر آپ ہمیں ای میل کریں",
+    p_email_pre: "جب آپ",
+    p_email_post: " پر لکھتے ہیں، ہم آپ کا پیغام صرف جواب دینے کے لیے استعمال کرتے ہیں۔ ہم اسے کسی کے ساتھ شیئر نہیں کرتے۔",
+    h_coppa: "بچوں کی رازداری (COPPA)",
+    p_coppa: "یہ ایپ 13 سال سے کم عمر کے بچوں کی ذاتی معلومات جان بوجھ کر جمع نہیں کرتا۔ اگر آپ والدین ہیں اور کوئی سوال ہے تو براہ کرم ہمیں ای میل کریں۔",
+    h_changes: "تبدیلیاں",
+    p_changes: "اگر یہ پالیسی کبھی بدلے تو یہ صفحہ اپ ڈیٹ کیا جائے گا۔",
+    updated: "آخری اپ ڈیٹ: اپریل 2026"
+  },
+  ko: {
+    pageTitle: "개인정보", backHome: "← 홈으로 돌아가기",
+    intro: "R&P Music은 어린이와 가족을 위해 만들어졌습니다. 간단하게 유지합니다.",
+    h_collect: "우리가 수집하는 것",
+    p_collect: "아무것도 수집하지 않습니다. 이메일, 이름, 나이, 계정 모두 필요 없습니다. 분석, 추적, 광고 쿠키도 없습니다.",
+    h_data: "당신의 데이터가 있는 곳",
+    p_data: "프로필, 좋아하는 곡, 설정은 오직 사용자의 기기 브라우저에만 저장됩니다. 우리는 그것을 볼 수 없고, 기기 밖으로 나가지 않습니다.",
+    h_email: "이메일을 보내주실 때",
+    p_email_pre: "",
+    p_email_post: " 에 편지를 쓰시면, 답장을 위해서만 사용합니다. 누구와도 공유하지 않습니다.",
+    h_coppa: "어린이 개인정보 (COPPA)",
+    p_coppa: "이 앱은 13세 미만 어린이의 개인정보를 고의로 수집하지 않습니다. 부모이시고 질문이 있으시면 이메일로 문의해 주세요.",
+    h_changes: "변경사항",
+    p_changes: "이 정책이 변경되면 이 페이지가 업데이트됩니다.",
+    updated: "최종 업데이트: 2026년 4월"
+  },
+  tl: {
+    pageTitle: "Privacy", backHome: "← Bumalik sa home",
+    intro: "Ang R&P Music ay ginawa para sa mga bata at pamilya. Pinananatili naming simple.",
+    h_collect: "Ano ang kinokolekta namin",
+    p_collect: "Wala. Walang email, walang pangalan, walang edad, walang account. Walang analytics, walang tracking, walang advertising cookies.",
+    h_data: "Saan nakatira ang data mo",
+    p_data: "Ang mga profile, hinearted na kanta, at settings ay naka-save lang sa browser ng sarili mong device. Hindi namin nakikita. Hindi ito lumalabas ng device mo.",
+    h_email: "Kung mag-email ka sa amin",
+    p_email_pre: "Kapag sumulat ka sa",
+    p_email_post: ", ginagamit lang namin ang mensahe mo para sumagot. Hindi namin ito ibinabahagi sa kahit sino.",
+    h_coppa: "Privacy ng mga bata (COPPA)",
+    p_coppa: "Ang app na ito ay hindi sinasadyang nangongolekta ng personal na impormasyon mula sa mga batang wala pang 13 taong gulang. Kung magulang ka at may tanong, mag-email lang sa amin.",
+    h_changes: "Mga pagbabago",
+    p_changes: "Kung magbago ang patakarang ito, ia-update ang page na ito.",
+    updated: "Huling update: Abril 2026"
+  }
+};
+const RTL = new Set(["ar", "ur"]);
+let lang = "en";
+try { lang = localStorage.getItem("rap-lang") || ""; } catch(e) {}
+if (!T[lang]) lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+if (!T[lang]) lang = "en";
+const dict = T[lang];
+document.querySelectorAll("[data-i18n]").forEach(el => {
+  const k = el.getAttribute("data-i18n");
+  if (dict[k] != null) el.textContent = dict[k];
+});
+document.documentElement.lang = lang;
+document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
+document.title = dict.pageTitle + " — R&P Music";
+</script>
+
+</body>
+</html>

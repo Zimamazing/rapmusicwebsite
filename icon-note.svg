@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="90" fill="#4FC3F7"/>
+
+  <!-- Rainbow arc hovering above the note head -->
+  <g fill="none" stroke-width="16" stroke-linecap="butt">
+    <path d="M 56 384 A 200 200 0 0 1 456 384" stroke="#ff3b30"/>
+    <path d="M 70 384 A 186 186 0 0 1 442 384" stroke="#ff9500"/>
+    <path d="M 84 384 A 172 172 0 0 1 428 384" stroke="#ffcc00"/>
+    <path d="M 98 384 A 158 158 0 0 1 414 384" stroke="#34c759"/>
+    <path d="M 112 384 A 144 144 0 0 1 400 384" stroke="#3498db"/>
+    <path d="M 126 384 A 130 130 0 0 1 386 384" stroke="#9b59b6"/>
+  </g>
+
+  <!-- Stem -->
+  <line x1="328" y1="360" x2="328" y2="130" stroke="#000000" stroke-width="16" stroke-linecap="square"/>
+
+  <!-- Eighth flag -->
+  <path d="M 328 130 c 56 21 77 63 42 126 c 35 -49 14 -77 -42 -70 z" fill="#000000"/>
+
+  <!-- Plain black note head -->
+  <ellipse cx="256" cy="360" rx="80" ry="64" fill="#000000" transform="rotate(-12 256 360)"/>
+</svg>

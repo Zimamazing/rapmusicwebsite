@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R&P Music — Read & Play Music</title>
+<meta name="description" content="A colorful, kid-friendly way to read and play music. Runs in your browser — no install.">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#9B6BFF">
+<meta name="apple-mobile-web-app-title" content="R&P Music">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Chicle&family=DM+Sans:wght@700&family=Noto+Music&display=swap" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((e) => console.log('SW reg failed:', e));
+    });
+  }
+</script>
+<style>
+  :root {
+    --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
+    --g: #3b82f6; --a: #a855f7; --b: #ec4899;
+    --bg: #fffdf9; --text: #1a1a1a; --text2: #666; --border: #e5e5e5;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+
+  .rainbow { display: flex; height: 6px; }
+  .rainbow span { flex: 1; }
+  .rainbow span:nth-child(1) { background: var(--c); }
+  .rainbow span:nth-child(2) { background: var(--d); }
+  .rainbow span:nth-child(3) { background: var(--e); }
+  .rainbow span:nth-child(4) { background: var(--f); }
+  .rainbow span:nth-child(5) { background: var(--g); }
+  .rainbow span:nth-child(6) { background: var(--a); }
+  .rainbow span:nth-child(7) { background: var(--b); }
+
+  header { padding: 24px 0; border-bottom: 1px solid var(--border); }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 22px; }
+  .logo img { width: 36px; height: 36px; border-radius: 8px; }
+  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; }
+  .brand-logo .r { color: var(--c); }
+  .brand-logo .p { color: var(--g); }
+  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.08em; text-shadow: -2px -2px 0 #a87b00, 2px -2px 0 #a87b00, -2px 2px 0 #a87b00, 2px 2px 0 #a87b00, -2px 0 0 #a87b00, 2px 0 0 #a87b00, 0 -2px 0 #a87b00, 0 2px 0 #a87b00; }
+  .nav-links { display: flex; align-items: center; gap: 20px; }
+  .nav-links a { color: var(--text2); font-size: 15px; }
+
+  .lang-picker { position: relative; }
+  .lang-btn {
+    appearance: none; -webkit-appearance: none;
+    background: transparent; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px 6px 30px; font-size: 14px; color: var(--text2);
+    font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    position: relative;
+  }
+  .lang-btn::before {
+    content: "🌐"; position: absolute; left: 8px; top: 50%;
+    transform: translateY(-50%); font-size: 14px; pointer-events: none;
+  }
+  .lang-btn:hover { border-color: var(--accent); color: var(--text); }
+  .lang-btn .arrow { font-size: 9px; transition: transform 0.15s; }
+  .lang-btn[aria-expanded="true"] .arrow { transform: rotate(180deg); }
+  .lang-list {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    min-width: 220px; max-height: 340px; overflow-y: auto;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    list-style: none; margin: 0; padding: 4px; z-index: 100;
+  }
+  .lang-list li {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 12px; font-size: 15px; cursor: pointer;
+    border-radius: 6px; color: var(--text); gap: 12px;
+  }
+  .lang-list li:hover, .lang-list li:focus { background: var(--bg2); outline: none; }
+  .lang-list li[aria-selected="true"] { background: var(--bg2); font-weight: 600; }
+  .lang-list .native { flex: 1; }
+  .lang-list .eng { color: var(--text2); font-size: 12px; flex-shrink: 0; }
+  [dir="rtl"] .lang-list { right: auto; left: 0; }
+
+  .hero { padding: 100px 0 80px; text-align: center; }
+  .hero h1 { font-family: 'Chicle', cursive; font-size: clamp(40px, 7vw, 64px); font-weight: 600; letter-spacing: 0.08em; line-height: 1.15; margin-bottom: 24px; }
+  .hero h1 .note, .install-title .note { display: inline-block; transition: transform 0.2s; }
+  .hero h1 .note:hover, .install-title .note:hover { transform: translateY(-6px) rotate(-6deg); }
+  .n-r { color: var(--c); }
+  .n-e { color: var(--d); }
+  .n-a { color: var(--e); text-shadow: 0 0 1px #a87b00, 0 0 1px #a87b00; }
+  .n-d { color: var(--f); }
+  .n-p { color: var(--g); }
+  .n-l { color: var(--a); }
+  .n-y { color: var(--b); }
+
+  .hero p { font-size: clamp(17px, 2.2vw, 20px); color: var(--text2); max-width: 560px; margin: 0 auto 40px; white-space: pre-line; }
+
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--text); color: white; padding: 18px 36px; border-radius: 14px; font-size: 18px; font-weight: 600; transition: transform 0.15s, background 0.15s, box-shadow 0.15s; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+  .cta:hover { background: #000; transform: translateY(-2px); text-decoration: none; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+  .cta .arrow { font-size: 22px; transition: transform 0.15s; }
+  .cta:hover .arrow { transform: translateX(4px); }
+  [dir="rtl"] .cta:hover .arrow { transform: translateX(-4px); }
+  [dir="rtl"] .cta .arrow { transform: scaleX(-1); }
+  .cta-sub { display: block; margin-top: 16px; color: var(--text2); font-size: 14px; }
+  .cta-sub strong { font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .features { padding: 80px 0; border-top: 1px solid var(--border); background: #faf8f3; }
+  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 48px; }
+  @media (max-width: 720px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 460px) { .features-grid { grid-template-columns: 1fr; } }
+  .feature .icon { font-size: 40px; margin-bottom: 12px; height: 110px; display: flex; align-items: center; justify-content: center; }
+  .feature .icon svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+  .features-grid .feature:nth-child(n+4) .icon { justify-content: flex-start; align-items: flex-end; }
+  .feature h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; white-space: nowrap; }
+  .feature p { color: var(--text2); font-size: 15px; }
+
+  h2 { font-size: clamp(28px, 4vw, 36px); font-weight: 800; letter-spacing: -0.01em; text-align: center; }
+  .install-tip { padding: 80px 0; border-top: 1px solid var(--border); text-align: center; }
+  .install-tip h2 { margin-bottom: 16px; }
+  .install-tip p { color: var(--text2); max-width: 520px; margin: 0 auto 8px; }
+  .install-title .launch-btn { font-size: 20px; padding: 8px 22px; }
+  .brand-text { font-family: 'Chicle', cursive; letter-spacing: 0.11em; }
+  .amp { display: inline-block; margin: 0 -0.11em; }
+  .hero h1 .amp { margin: 0 -0.08em; }
+
+  footer { padding: 40px 0; text-align: center; color: var(--text2); font-size: 14px; border-top: 1px solid var(--border); }
+  footer .links { margin-bottom: 12px; display: inline-flex; align-items: center; gap: 16px; }
+  footer .links a { color: var(--text2); }
+  .launch-btn { display: inline-block; background: #ff6f61; color: #fff; padding: 10px 24px; border-radius: 999px; font-weight: 600; box-shadow: 0 2px 10px rgba(255,111,97,0.3); transition: transform 0.15s, background 0.15s, box-shadow 0.15s; vertical-align: middle; }
+  .launch-btn:hover { background: #ff5a4d; transform: translateY(-2px); text-decoration: none; box-shadow: 0 4px 16px rgba(255,111,97,0.45); color: #fff; }
+  footer .contact-invite { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 28px; color: var(--text2); font-size: 15px; }
+  footer .footer-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; font-size: 13px; color: var(--text2); }
+  footer .footer-meta a { color: var(--text2); }
+  footer .footer-meta a:hover { color: var(--text); text-decoration: underline; }
+  footer .contact-invite .envelope { transition: transform 0.15s, color 0.15s; }
+  footer .contact-invite:hover { color: var(--text); }
+  footer .contact-invite:hover .envelope { transform: translateY(-2px); color: #ff6f61; }
+  footer .contact-invite:hover span { text-decoration: underline; }
+  footer .credit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  footer .heart-notes { display: inline-flex; vertical-align: middle; filter: drop-shadow(0 0 6px rgba(255, 7, 58, 0.55)) drop-shadow(0 0 14px rgba(255, 7, 58, 0.35)); }
+
+  @media (max-width: 600px) {
+    .hero { padding: 56px 0 44px; }
+    .features, .install-tip { padding: 60px 0; }
+    .nav-links { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rainbow"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+<header>
+  <div class="container nav">
+    <div class="logo">
+      <img src="icon.png" alt="R&P Music logo">
+      <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#features" data-i18n="navFeatures">Features</a>
+      <a href="/app" data-i18n="navLaunch">Launch</a>
+      <a href="mailto:readandplaymusicapp@gmail.com" data-i18n="navHelp">Help</a>
+      <div class="lang-picker">
+        <button type="button" class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose language">
+          <span class="current-label">English</span>
+          <span class="arrow" aria-hidden="true">▾</span>
+        </button>
+        <ul class="lang-list" role="listbox" id="langList" hidden>
+          <li role="option" data-value="en" aria-selected="true" tabindex="-1" title="English"><span class="native">English</span><span class="eng">English</span></li>
+          <li role="option" data-value="zh" tabindex="-1" title="Chinese"><span class="native">中文</span><span class="eng">Chinese</span></li>
+          <li role="option" data-value="hi" tabindex="-1" title="Hindi"><span class="native">हिन्दी</span><span class="eng">Hindi</span></li>
+          <li role="option" data-value="es" tabindex="-1" title="Spanish"><span class="native">Español</span><span class="eng">Spanish</span></li>
+          <li role="option" data-value="fr" tabindex="-1" title="French"><span class="native">Français</span><span class="eng">French</span></li>
+          <li role="option" data-value="ar" tabindex="-1" title="Arabic"><span class="native">العربية</span><span class="eng">Arabic</span></li>
+          <li role="option" data-value="bn" tabindex="-1" title="Bengali"><span class="native">বাংলা</span><span class="eng">Bengali</span></li>
+          <li role="option" data-value="pt" tabindex="-1" title="Portuguese"><span class="native">Português</span><span class="eng">Portuguese</span></li>
+          <li role="option" data-value="ru" tabindex="-1" title="Russian"><span class="native">Русский</span><span class="eng">Russian</span></li>
+          <li role="option" data-value="ur" tabindex="-1" title="Urdu"><span class="native">اردو</span><span class="eng">Urdu</span></li>
+          <li role="option" data-value="ja" tabindex="-1" title="Japanese"><span class="native">日本語</span><span class="eng">Japanese</span></li>
+          <li role="option" data-value="tl" tabindex="-1" title="Filipino"><span class="native">Filipino</span><span class="eng">Filipino</span></li>
+          <li role="option" data-value="ko" tabindex="-1" title="Korean"><span class="native">한국어</span><span class="eng">Korean</span></li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <h1>
+      <span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music
+    </h1>
+    <p data-i18n="tagline">Colored notes. Colored keys.\nLearn to read and play music.</p>
+    <a href="/app" class="cta">
+      <span data-i18n="launch">Let's go!</span>
+    </a>
+    <span class="cta-sub" data-i18n="ctaSub"><strong>Free</strong> · runs in your browser · no installation needed</span>
+  </div>
+</section>
+
+<section id="features" class="features">
+  <div class="container">
+    <h2 data-i18n="featuresTitle">The fun is in the fundamentals.</h2>
+    <div class="features-grid">
+      <div class="feature">
+        <div class="icon">
+          <svg viewBox="0 0 680 250" width="320" aria-hidden="true" style="display:block;margin:0 auto;max-width:100%;height:auto;">
+            <!-- Staff (STAFF_TOP=60, LINE_SPACING=32, line-color=#888, strokeWidth=2) -->
+            <line x1="0" x2="673" y1="60" y2="60" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="673" y1="92" y2="92" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="673" y1="124" y2="124" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="673" y1="156" y2="156" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="673" y1="188" y2="188" stroke="#888" stroke-width="2"/>
+            <!-- Starting barline (single thin) -->
+            <line x1="3" x2="3" y1="60" y2="188" stroke="#333" stroke-width="2"/>
+            <!-- Final barline (thin + thick) — extra space after C5 -->
+            <line x1="663" x2="663" y1="60" y2="188" stroke="#333" stroke-width="2"/>
+            <line x1="671" x2="671" y1="60" y2="188" stroke="#333" stroke-width="5"/>
+            <!-- Treble clef (matches app: font-size 115, color #333, Noto Music) -->
+            <text x="26" y="190" font-size="115" fill="#333" font-family="'Noto Music', 'Noto Serif', serif">𝄞</text>
+            <!-- Rainbow arcs above middle C (matches app's "playing note" treatment) -->
+            <g fill="none" stroke-width="3" stroke-linecap="butt">
+              <path d="M 116 226 A 44 44 0 0 1 204 226" stroke="#ff3b30"/>
+              <path d="M 119 226 A 41 41 0 0 1 201 226" stroke="#ff9500"/>
+              <path d="M 122 226 A 38 38 0 0 1 198 226" stroke="#ffcc00"/>
+              <path d="M 125 226 A 35 35 0 0 1 195 226" stroke="#34c759"/>
+              <path d="M 128 226 A 32 32 0 0 1 192 226" stroke="#3498db"/>
+              <path d="M 131 226 A 29 29 0 0 1 189 226" stroke="#9b59b6"/>
+            </g>
+            <!-- Ledger line for middle C: app uses x±(NOTE_RX + 8) = cx±28 -->
+            <line x1="132" x2="188" y1="220" y2="220" stroke="#888" stroke-width="2"/>
+            <!-- Stems: up-stem at x = cx + NOTE_RX - 2 = cx + 18, length STEM_HEIGHT=90.
+                 App draws stem twice: black outline underneath, colored stripe on top. -->
+            <g stroke="#000" stroke-width="5">
+              <line x1="178" y1="220" x2="178" y2="130"/>
+              <line x1="253" y1="204" x2="253" y2="114"/>
+              <line x1="318" y1="188" x2="318" y2="98"/>
+              <line x1="383" y1="172" x2="383" y2="82"/>
+              <line x1="448" y1="156" x2="448" y2="66"/>
+              <line x1="513" y1="140" x2="513" y2="50"/>
+              <line x1="578" y1="124" x2="578" y2="34"/>
+              <line x1="643" y1="108" x2="643" y2="18"/>
+            </g>
+            <g stroke-width="3">
+              <line x1="178" y1="220" x2="178" y2="130" stroke="var(--c)"/>
+              <line x1="253" y1="204" x2="253" y2="114" stroke="var(--d)"/>
+              <line x1="318" y1="188" x2="318" y2="98" stroke="var(--e)"/>
+              <line x1="383" y1="172" x2="383" y2="82" stroke="var(--f)"/>
+              <line x1="448" y1="156" x2="448" y2="66" stroke="var(--g)"/>
+              <line x1="513" y1="140" x2="513" y2="50" stroke="var(--a)"/>
+              <line x1="578" y1="124" x2="578" y2="34" stroke="var(--b)"/>
+              <line x1="643" y1="108" x2="643" y2="18" stroke="var(--c)"/>
+            </g>
+            <!-- Paired beams (first-note color of each pair) -->
+            <line x1="178" y1="130" x2="253" y2="114" stroke="var(--c)" stroke-width="8"/>
+            <line x1="318" y1="98"  x2="383" y2="82"  stroke="var(--e)" stroke-width="8"/>
+            <line x1="448" y1="66"  x2="513" y2="50"  stroke="var(--g)" stroke-width="8"/>
+            <line x1="578" y1="34"  x2="643" y2="18"  stroke="var(--b)" stroke-width="8"/>
+            <!-- Note heads: tilted ellipses (rx=20, ry=16, rotate -12°), black stroked -->
+            <g stroke="#000" stroke-width="2">
+              <ellipse cx="160" cy="220" rx="20" ry="16" fill="var(--c)" transform="rotate(-12 160 220)"/>
+              <ellipse cx="235" cy="204" rx="20" ry="16" fill="var(--d)" transform="rotate(-12 235 204)"/>
+              <ellipse cx="300" cy="188" rx="20" ry="16" fill="var(--e)" transform="rotate(-12 300 188)"/>
+              <ellipse cx="365" cy="172" rx="20" ry="16" fill="var(--f)" transform="rotate(-12 365 172)"/>
+              <ellipse cx="430" cy="156" rx="20" ry="16" fill="var(--g)" transform="rotate(-12 430 156)"/>
+              <ellipse cx="495" cy="140" rx="20" ry="16" fill="var(--a)" transform="rotate(-12 495 140)"/>
+              <ellipse cx="560" cy="124" rx="20" ry="16" fill="var(--b)" transform="rotate(-12 560 124)"/>
+              <ellipse cx="625" cy="108" rx="20" ry="16" fill="var(--c)" transform="rotate(-12 625 108)"/>
+            </g>
+            <!-- Letter labels: black text, DM Sans 700, size 18, y = cy + 6 (app convention) -->
+            <g text-anchor="middle" font-size="18" font-weight="700" fill="#000" font-family="'DM Sans', sans-serif">
+              <text x="160" y="226">C</text>
+              <text x="235" y="210">D</text>
+              <text x="300" y="194">E</text>
+              <text x="365" y="178">F</text>
+              <text x="430" y="162">G</text>
+              <text x="495" y="146">A</text>
+              <text x="560" y="130">B</text>
+              <text x="625" y="114">C</text>
+            </g>
+          </svg>
+        </div>
+        <h3 data-i18n="feat1Title">Colored notes</h3>
+        <p data-i18n="feat1Body">Every pitch has its own color to help you learn to read and play sheet music.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">
+          <svg viewBox="0 0 180 210" width="160" aria-hidden="true" style="display:block;margin:0 auto;max-width:100%;height:auto;">
+            <!-- Short staff centered on the A note -->
+            <line x1="0" x2="180" y1="60" y2="60" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="180" y1="92" y2="92" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="180" y1="124" y2="124" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="180" y1="156" y2="156" stroke="#888" stroke-width="2"/>
+            <line x1="0" x2="180" y1="188" y2="188" stroke="#888" stroke-width="2"/>
+            <!-- Rainbow arcs over the A (cx=90, y+6=146) -->
+            <g fill="none" stroke-width="3" stroke-linecap="butt">
+              <path d="M 46 146 A 44 44 0 0 1 134 146" stroke="#ff3b30"/>
+              <path d="M 49 146 A 41 41 0 0 1 131 146" stroke="#ff9500"/>
+              <path d="M 52 146 A 38 38 0 0 1 128 146" stroke="#ffcc00"/>
+              <path d="M 55 146 A 35 35 0 0 1 125 146" stroke="#34c759"/>
+              <path d="M 58 146 A 32 32 0 0 1 122 146" stroke="#3498db"/>
+              <path d="M 61 146 A 29 29 0 0 1 119 146" stroke="#9b59b6"/>
+            </g>
+            <!-- Eighth note at A4 (2nd space, y=140). Stem up at cx+18=108, length 90 -->
+            <line x1="108" y1="140" x2="108" y2="50" stroke="#000" stroke-width="5"/>
+            <line x1="108" y1="140" x2="108" y2="50" stroke="var(--a)" stroke-width="3"/>
+            <!-- Eighth flag -->
+            <path d="M108,50 c16,6 22,18 12,36 c10,-14 4,-22 -12,-20 z" fill="var(--a)" stroke="#000" stroke-width="2" stroke-linejoin="round"/>
+            <!-- Note head A (same size as main icon: rx=20, ry=16) -->
+            <ellipse cx="90" cy="140" rx="20" ry="16" fill="var(--a)" stroke="#000" stroke-width="2" transform="rotate(-12 90 140)"/>
+            <text x="90" y="146" text-anchor="middle" font-size="18" font-weight="700" fill="#000" font-family="'DM Sans', sans-serif">A</text>
+          </svg>
+        </div>
+        <h3 data-i18n="feat2Title">Rainbow tracker</h3>
+        <p data-i18n="feat2Body">A glowing rainbow arcs over the note playing at the moment, so you can follow along without losing your place.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">
+          <svg viewBox="0 0 240 100" aria-hidden="true" style="display:block;margin:0 auto 0 0;max-width:96%;height:auto;">
+            <!-- One-octave piano: 8 colored white keys (C D E F G A B C) matching app -->
+            <g stroke="rgba(0,0,0,0.35)" stroke-width="1">
+              <rect x="0"   y="0" width="30" height="100" fill="var(--c)" rx="3"/>
+              <rect x="30"  y="0" width="30" height="100" fill="var(--d)" rx="3"/>
+              <rect x="60"  y="0" width="30" height="100" fill="var(--e)" rx="3"/>
+              <rect x="90"  y="0" width="30" height="100" fill="var(--f)" rx="3"/>
+              <rect x="120" y="0" width="30" height="100" fill="var(--g)" rx="3"/>
+              <rect x="150" y="0" width="30" height="100" fill="var(--a)" rx="3"/>
+              <rect x="180" y="0" width="30" height="100" fill="var(--b)" rx="3"/>
+              <rect x="210" y="0" width="30" height="100" fill="var(--c)" rx="3"/>
+            </g>
+            <!-- White-key letter labels, positioned below the black keys so they stay visible -->
+            <g text-anchor="middle" font-size="13" font-weight="700" fill="#000" font-family="'DM Sans', sans-serif">
+              <text x="15"  y="92">C</text>
+              <text x="45"  y="92">D</text>
+              <text x="75"  y="92">E</text>
+              <text x="105" y="92">F</text>
+              <text x="135" y="92">G</text>
+              <text x="165" y="92">A</text>
+              <text x="195" y="92">B</text>
+              <text x="225" y="92">C</text>
+            </g>
+            <!-- 5 black keys (C#, D#, F#, G#, A#) -->
+            <g fill="#1a1a1a" stroke="#000" stroke-width="1">
+              <rect x="21"  y="0" width="18" height="60" rx="2"/>
+              <rect x="51"  y="0" width="18" height="60" rx="2"/>
+              <rect x="111" y="0" width="18" height="60" rx="2"/>
+              <rect x="141" y="0" width="18" height="60" rx="2"/>
+              <rect x="171" y="0" width="18" height="60" rx="2"/>
+            </g>
+          </svg>
+        </div>
+        <h3 data-i18n="feat5Title">Built-in piano</h3>
+        <p data-i18n="feat5Body">A colored keyboard at the bottom matches the notes on the staff so you can connect what you see and play.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">
+          <svg viewBox="0 0 24 28" aria-hidden="true" style="display:block;height:75%;width:auto;">
+            <path d="M 4 25 L 8 3 L 16 3 L 20 25 Z" fill="#b45309" stroke="#78350f" stroke-width="1.2"/>
+            <rect x="10" y="7" width="4" height="15" fill="#fef3c7" stroke="#78350f" stroke-width="0.5"/>
+            <circle cx="12" cy="5.5" r="1" fill="#78350f"/>
+            <line x1="12" y1="5.5" x2="10" y2="22" stroke="#78350f" stroke-width="1.2" stroke-linecap="round"/>
+            <rect x="9" y="11" width="5" height="2.5" fill="#78350f" transform="rotate(-7 11.5 12)"/>
+            <rect x="2" y="25" width="20" height="2" fill="#78350f"/>
+          </svg>
+        </div>
+        <h3 data-i18n="feat6Title">Metronome</h3>
+        <p data-i18n="feat6Body">A beat buddy of your choice keeps time so you can feel the rhythm.</p>
+      </div>
+      <div class="feature">
+        <div class="icon" style="font-size:80px;">👀</div>
+        <h3 data-i18n="feat7Title">Learn mode</h3>
+        <p data-i18n="feat7Body">The app plays the song for you — the rainbow tracker glides from note to note and the matching piano key lights up, so you can watch and hear how the song goes.</p>
+      </div>
+      <div class="feature">
+        <div class="icon" style="font-size:80px;">🏋️</div>
+        <h3 data-i18n="feat4Title">Practice mode</h3>
+        <p data-i18n="feat4Body">You play each note yourself — the app waits for the right key before moving on, so you can learn at your own pace.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="install-tip">
+  <div class="container">
+    <h2 class="install-title"><span data-i18n="installClick">Click </span><a href="/app" class="launch-btn" data-i18n="navLaunch">Launch</a><span data-i18n="installTo"> to </span><span class="brand-text"><span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music</span><span data-i18n="installSuffix">.</span></h2>
+    <p data-i18n="installBody1">No download needed.</p>
+    <p data-i18n="installBody2" style="margin-top:28px">Want it to feel like an app?</p>
+    <p data-i18n="installBody3">On iPad/iPhone tap Share → Add to Home Screen.</p>
+    <p data-i18n="installBody4">On Android, tap the menu → Install app.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <a href="mailto:readandplaymusicapp@gmail.com" class="contact-invite">
+      <svg class="envelope" viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">
+        <path d="M3 6h18v12H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M3 7l9 7 9-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <span data-i18n="sayHi">We'd love to hear from you.</span>
+    </a>
+    <div class="footer-meta">
+      <span>© 2026 <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span></span>
+      <a href="/privacy" data-i18n="privacy">Privacy</a>
+      <a href="/credits" data-i18n="credits">Credits</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const TRANSLATIONS = {
+    en: {
+      navFeatures: "Features", navLaunch: "Launch", navHelp: "Help",
+      tagline: "Colored notes. Colored keys.\nLearn to read and play music.",
+      launch: "Let's go!",
+      ctaSub: "<strong>Free</strong> · runs in your browser · no installation needed",
+      featuresTitle: "The fun is in the fundamentals.",
+      feat1Title: "Colored notes", feat1Body: "Every pitch has its own color to help you learn to read and play sheet music.",
+      feat2Title: "Rainbow tracker", feat2Body: "A glowing rainbow arcs over the note playing at the moment, so you can follow along without losing your place.",
+      feat4Title: "Practice mode", feat4Body: "You play each note yourself — the app waits for the right key before moving on, so you can learn at your own pace.",
+      feat5Title: "Built-in piano", feat5Body: "A colored keyboard at the bottom matches the notes on the staff so you can connect what you see and play.",
+      feat6Title: "Metronome", feat6Body: "A beat buddy of your choice keeps time so you can feel the rhythm.",
+      feat7Title: "Learn mode", feat7Body: "The app plays the song for you — the rainbow tracker glides from note to note and the matching piano key lights up, so you can watch and hear how the song goes.",
+      installClick: "Click ", installTo: " to ", installSuffix: ".",
+      installBody1: "No download needed.",
+      installBody2: "Want it to feel like an app?",
+      installBody3: "On iPad/iPhone tap Share → Add to Home Screen.",
+      installBody4: "On Android, tap the menu → Install app.",
+      sayHi: "We'd love to hear from you.",
+      privacy: "Privacy", credits: "Credits"
+    },
+    zh: {
+      navFeatures: "功能", navLaunch: "启动", navHelp: "帮助",
+      tagline: "彩色的音符。彩色的琴键。\n学习读谱和演奏音乐。",
+      launch: "开始吧！",
+      ctaSub: "<strong>免费</strong> · 在浏览器中运行 · 无需安装",
+      featuresTitle: "乐趣就在基本功里。",
+      feat1Title: "彩色音符", feat1Body: "每个音高都有自己的颜色，帮助你学会读懂和演奏乐谱。",
+      feat2Title: "彩虹追踪器", feat2Body: "正在演奏的音符上方会出现一道发光的彩虹，让你跟上节拍不迷路。",
+      feat4Title: "练习模式", feat4Body: "每个音符都由你自己弹奏——应用会等你按对琴键再继续，让你按自己的节奏学习。",
+      feat5Title: "内置钢琴", feat5Body: "屏幕底部的彩色键盘与五线谱上的音符相对应，让你把看到的和弹出的联系起来。",
+      feat6Title: "节拍器", feat6Body: "你选择的节拍伙伴为你打拍子，让你感受节奏。",
+      feat7Title: "学习模式", feat7Body: "应用为你演奏歌曲——彩虹追踪器从一个音符滑到下一个，对应的琴键亮起，让你可以看和听歌曲是怎么进行的。",
+      installClick: "点击 ", installTo: " 打开 ", installSuffix: "。",
+      installBody1: "无需下载。",
+      installBody2: "想让它像一个应用？",
+      installBody3: "在 iPad/iPhone 上，点击 共享 → 添加到主屏幕。",
+      installBody4: "在 Android 上，点击菜单 → 安装应用。",
+      sayHi: "我们期待收到你的消息。",
+      privacy: "隐私", credits: "鸣谢"
+    },
+    hi: {
+      navFeatures: "विशेषताएँ", navLaunch: "शुरू करें", navHelp: "मदद",
+      tagline: "रंगीन नोट। रंगीन कीज़।\nसंगीत पढ़ना और बजाना सीखें।",
+      launch: "चलो शुरू करें!",
+      ctaSub: "<strong>मुफ़्त</strong> · आपके ब्राउज़र में चलता है · इंस्टॉल करने की ज़रूरत नहीं",
+      featuresTitle: "मज़ा बुनियादी बातों में है।",
+      feat1Title: "रंगीन नोट", feat1Body: "हर सुर का अपना रंग होता है, जो आपको सुरलिपि पढ़ना और बजाना सीखने में मदद करता है।",
+      feat2Title: "इंद्रधनुषी ट्रैकर", feat2Body: "अभी बज रहे सुर के ऊपर एक चमकदार इंद्रधनुष आता है, जिससे आप अपनी जगह खोए बिना साथ चल सकें।",
+      feat4Title: "अभ्यास मोड", feat4Body: "आप हर सुर खुद बजाते हैं — ऐप सही की दबाने तक इंतज़ार करता है, जिससे आप अपनी रफ़्तार से सीख सकें।",
+      feat5Title: "बिल्ट-इन पियानो", feat5Body: "नीचे का रंगीन कीबोर्ड स्टाफ़ के नोट्स से मेल खाता है, जिससे आप जो देखते हैं और जो बजाते हैं, उन्हें जोड़ सकते हैं।",
+      feat6Title: "मेट्रोनोम", feat6Body: "आपकी पसंद का एक बीट-साथी ताल बनाए रखता है, ताकि आप लय को महसूस कर सकें।",
+      feat7Title: "लर्न मोड", feat7Body: "ऐप आपके लिए गाना बजाता है — इंद्रधनुषी ट्रैकर एक सुर से दूसरे सुर पर सरकता है और संबंधित पियानो की रोशनी जलती है, जिससे आप देख और सुन सकें कि गाना कैसे चलता है।",
+      installClick: "", installTo: " दबाएँ और ", installSuffix: " का आनंद लें।",
+      installBody1: "डाउनलोड करने की ज़रूरत नहीं।",
+      installBody2: "ऐप जैसा अनुभव चाहिए?",
+      installBody3: "iPad/iPhone पर Share → Add to Home Screen दबाएँ।",
+      installBody4: "Android पर मेन्यू → Install app दबाएँ।",
+      sayHi: "हम आपसे सुनना चाहेंगे।",
+      privacy: "गोपनीयता", credits: "आभार"
+    },
+    es: {
+      navFeatures: "Características", navLaunch: "Abrir", navHelp: "Ayuda",
+      tagline: "Notas de colores. Teclas de colores.\nAprende a leer y tocar música.",
+      launch: "¡Vamos!",
+      ctaSub: "<strong>Gratis</strong> · funciona en tu navegador · sin instalación",
+      featuresTitle: "La diversión está en lo básico.",
+      feat1Title: "Notas de colores", feat1Body: "Cada nota tiene su propio color para ayudarte a aprender a leer y tocar partituras.",
+      feat2Title: "Seguidor arcoíris", feat2Body: "Un arcoíris brillante aparece sobre la nota que suena en este momento, para que puedas seguir sin perder tu lugar.",
+      feat4Title: "Modo práctica", feat4Body: "Tocas cada nota tú mismo — la app espera la tecla correcta antes de seguir, para que aprendas a tu propio ritmo.",
+      feat5Title: "Piano integrado", feat5Body: "Un teclado de colores en la parte inferior coincide con las notas del pentagrama para que conectes lo que ves con lo que tocas.",
+      feat6Title: "Metrónomo", feat6Body: "Un compañero de ritmo a tu elección marca el tempo para que sientas el ritmo.",
+      feat7Title: "Modo aprender", feat7Body: "La app toca la canción por ti — el arcoíris se desliza de nota en nota y la tecla correspondiente del piano se ilumina, para que veas y escuches cómo va la canción.",
+      installClick: "Haz clic en ", installTo: " para ", installSuffix: ".",
+      installBody1: "Sin descargas.",
+      installBody2: "¿Quieres que parezca una app?",
+      installBody3: "En iPad/iPhone toca Compartir → Agregar a pantalla de inicio.",
+      installBody4: "En Android, toca el menú → Instalar app.",
+      sayHi: "Nos encantaría saber de ti.",
+      privacy: "Privacidad", credits: "Créditos"
+    },
+    fr: {
+      navFeatures: "Fonctionnalités", navLaunch: "Lancer", navHelp: "Aide",
+      tagline: "Notes colorées. Touches colorées.\nApprends à lire et à jouer de la musique.",
+      launch: "C'est parti !",
+      ctaSub: "<strong>Gratuit</strong> · fonctionne dans votre navigateur · sans installation",
+      featuresTitle: "Le plaisir est dans les bases.",
+      feat1Title: "Notes colorées", feat1Body: "Chaque note a sa propre couleur pour t'aider à apprendre à lire et à jouer des partitions.",
+      feat2Title: "Traceur arc-en-ciel", feat2Body: "Un arc-en-ciel lumineux apparaît au-dessus de la note jouée à cet instant, pour que tu puisses suivre sans perdre ta place.",
+      feat4Title: "Mode entraînement", feat4Body: "Tu joues chaque note toi-même — l'app attend la bonne touche avant d'avancer, pour que tu apprennes à ton rythme.",
+      feat5Title: "Piano intégré", feat5Body: "Un clavier coloré en bas correspond aux notes sur la portée, pour que tu puisses relier ce que tu vois à ce que tu joues.",
+      feat6Title: "Métronome", feat6Body: "Un partenaire de rythme de ton choix garde le tempo pour que tu puisses ressentir le rythme.",
+      feat7Title: "Mode apprentissage", feat7Body: "L'app joue la chanson pour toi — l'arc-en-ciel glisse de note en note et la touche correspondante du piano s'illumine, pour que tu puisses voir et entendre comment la chanson se déroule.",
+      installClick: "Clique sur ", installTo: " pour ", installSuffix: ".",
+      installBody1: "Aucun téléchargement.",
+      installBody2: "Envie que ça ressemble à une vraie app ?",
+      installBody3: "Sur iPad/iPhone, touche Partager → Ajouter à l'écran d'accueil.",
+      installBody4: "Sur Android, touche le menu → Installer l'application.",
+      sayHi: "Nous aimerions avoir de tes nouvelles.",
+      privacy: "Confidentialité", credits: "Crédits"
+    },
+    ar: {
+      navFeatures: "الميزات", navLaunch: "افتح", navHelp: "مساعدة",
+      tagline: "نوتات ملوّنة. مفاتيح ملوّنة.\nتعلّم قراءة الموسيقى وعزفها.",
+      launch: "هيا بنا!",
+      ctaSub: "<strong>مجاني</strong> · يعمل في متصفحك · لا يحتاج إلى تثبيت",
+      featuresTitle: "المتعة في الأساسيات.",
+      feat1Title: "نوتات ملوّنة", feat1Body: "لكل نغمة لون خاص بها يساعدك على تعلّم قراءة النوتة الموسيقية وعزفها.",
+      feat2Title: "متتبّع قوس قزح", feat2Body: "يظهر قوس قزح متوهّج فوق النغمة التي تُعزف في تلك اللحظة، لتتمكّن من المتابعة دون أن تفقد مكانك.",
+      feat4Title: "وضع التدريب", feat4Body: "أنت تعزف كل نغمة بنفسك — ينتظر التطبيق المفتاح الصحيح قبل المتابعة، لتتعلّم بوتيرتك الخاصة.",
+      feat5Title: "بيانو مدمج", feat5Body: "لوحة مفاتيح ملوّنة في الأسفل تطابق النوتات على المدرّج، لتربط بين ما تراه وما تعزفه.",
+      feat6Title: "مِترُونوم", feat6Body: "رفيق إيقاع من اختيارك يحافظ على التوقيت لتشعر بالإيقاع.",
+      feat7Title: "وضع التعلّم", feat7Body: "يعزف التطبيق الأغنية من أجلك — ينتقل قوس قزح من نغمة إلى أخرى ويُضيء مفتاح البيانو المطابق، لترى وتسمع كيف تسير الأغنية.",
+      installClick: "اضغط ", installTo: " لتقرأ وتعزف ", installSuffix: ".",
+      installBody1: "لا حاجة للتنزيل.",
+      installBody2: "هل تريد أن يبدو كتطبيق؟",
+      installBody3: "على iPad/iPhone اضغط مشاركة → إضافة إلى الشاشة الرئيسية.",
+      installBody4: "على Android، اضغط القائمة → تثبيت التطبيق.",
+      sayHi: "يسعدنا سماع رأيك.",
+      privacy: "الخصوصية", credits: "الشكر والتقدير"
+    },
+    pt: {
+      navFeatures: "Recursos", navLaunch: "Abrir", navHelp: "Ajuda",
+      tagline: "Notas coloridas. Teclas coloridas.\nAprenda a ler e tocar música.",
+      launch: "Vamos!",
+      ctaSub: "<strong>Grátis</strong> · roda no seu navegador · sem instalação",
+      featuresTitle: "A diversão está no básico.",
+      feat1Title: "Notas coloridas", feat1Body: "Cada nota tem sua própria cor para te ajudar a aprender a ler e tocar partituras.",
+      feat2Title: "Rastreador arco-íris", feat2Body: "Um arco-íris brilhante aparece sobre a nota que está tocando no momento, para que você possa acompanhar sem se perder.",
+      feat4Title: "Modo prática", feat4Body: "Você toca cada nota por conta própria — o app espera a tecla certa antes de avançar, para que você aprenda no seu próprio ritmo.",
+      feat5Title: "Piano integrado", feat5Body: "Um teclado colorido embaixo combina com as notas na pauta, para você conectar o que vê e o que toca.",
+      feat6Title: "Metrônomo", feat6Body: "Um companheiro de batida à sua escolha mantém o tempo para você sentir o ritmo.",
+      feat7Title: "Modo aprender", feat7Body: "O app toca a música por você — o arco-íris desliza de nota em nota e a tecla correspondente do piano acende, para que você veja e ouça como a música vai.",
+      installClick: "Clique em ", installTo: " para ", installSuffix: ".",
+      installBody1: "Sem downloads.",
+      installBody2: "Quer que pareça um app?",
+      installBody3: "No iPad/iPhone toque em Compartilhar → Adicionar à Tela de Início.",
+      installBody4: "No Android, toque no menu → Instalar app.",
+      sayHi: "Adoraríamos receber sua mensagem.",
+      privacy: "Privacidade", credits: "Créditos"
+    },
+    ru: {
+      navFeatures: "Возможности", navLaunch: "Открыть", navHelp: "Помощь",
+      tagline: "Цветные ноты. Цветные клавиши.\nУчись читать и играть музыку.",
+      launch: "Поехали!",
+      ctaSub: "<strong>Бесплатно</strong> · работает в браузере · без установки",
+      featuresTitle: "Веселье — в основах.",
+      feat1Title: "Цветные ноты", feat1Body: "У каждой ноты свой цвет, чтобы помочь тебе научиться читать и играть по нотам.",
+      feat2Title: "Радужный трекер", feat2Body: "Яркая радуга появляется над нотой, которая звучит в этот момент, чтобы ты мог следить за мелодией, не теряя своего места.",
+      feat4Title: "Режим практики", feat4Body: "Ты играешь каждую ноту сам — приложение ждёт правильную клавишу, прежде чем двигаться дальше, чтобы ты учился в своём темпе.",
+      feat5Title: "Встроенное пианино", feat5Body: "Цветная клавиатура внизу совпадает с нотами на стане — ты связываешь то, что видишь, с тем, что играешь.",
+      feat6Title: "Метроном", feat6Body: "Твой ритм-напарник на твой выбор отбивает такт, чтобы ты почувствовал ритм.",
+      feat7Title: "Режим обучения", feat7Body: "Приложение играет песню за тебя — радуга скользит от ноты к ноте, а соответствующая клавиша пианино загорается, чтобы ты мог видеть и слышать, как звучит песня.",
+      installClick: "Нажми ", installTo: ", чтобы открыть ", installSuffix: ".",
+      installBody1: "Не нужно скачивать.",
+      installBody2: "Хочешь, чтобы это выглядело как приложение?",
+      installBody3: "На iPad/iPhone нажмите Поделиться → На экран «Домой».",
+      installBody4: "На Android нажмите меню → Установить приложение.",
+      sayHi: "Будем рады услышать тебя.",
+      privacy: "Конфиденциальность", credits: "Благодарности"
+    },
+    ja: {
+      navFeatures: "機能", navLaunch: "起動", navHelp: "ヘルプ",
+      tagline: "色付きの音符。色付きの鍵盤。\n楽譜を読んで演奏する方法を学ぼう。",
+      launch: "さあ、行こう！",
+      ctaSub: "<strong>無料</strong> · ブラウザで動く · インストール不要",
+      featuresTitle: "楽しさは基本にあり。",
+      feat1Title: "色付きの音符", feat1Body: "音の高さごとに色があって、楽譜を読んで演奏する方法を学ぶのに役立ちます。",
+      feat2Title: "レインボートラッカー", feat2Body: "今鳴っている音符の上に光る虹が現れるので、自分の場所を見失わずについていけます。",
+      feat4Title: "練習モード", feat4Body: "あなたが一音ずつ自分で演奏します — 正しい鍵盤を押すまでアプリが待つので、自分のペースで学べます。",
+      feat5Title: "内蔵ピアノ", feat5Body: "画面下のカラフルな鍵盤が譜面の音符と一致するので、見えるものと弾くものをつなげられます。",
+      feat6Title: "メトロノーム", feat6Body: "あなたの好きなビートバディが拍を刻むので、リズムを感じられます。",
+      feat7Title: "ラーンモード", feat7Body: "アプリがあなたのために曲を演奏します — 虹色のトラッカーが音符から音符へ滑り、対応するピアノの鍵盤が光るので、曲の進み方を見たり聴いたりできます。",
+      installClick: "", installTo: " を押して ", installSuffix: " を楽しもう。",
+      installBody1: "ダウンロード不要。",
+      installBody2: "アプリのように使いたい？",
+      installBody3: "iPad/iPhone では 共有 → ホーム画面に追加 をタップ。",
+      installBody4: "Android ではメニュー → アプリをインストール をタップ。",
+      sayHi: "ご連絡お待ちしています。",
+      privacy: "プライバシー", credits: "クレジット"
+    },
+    bn: {
+      navFeatures: "বৈশিষ্ট্য", navLaunch: "খুলুন", navHelp: "সাহায্য",
+      tagline: "রঙিন নোট। রঙিন কি।\nসঙ্গীত পড়তে এবং বাজাতে শিখুন।",
+      launch: "চলো শুরু করি!",
+      ctaSub: "<strong>বিনামূল্যে</strong> · ব্রাউজারে চলে · ইনস্টলের দরকার নেই",
+      featuresTitle: "মজা আছে মৌলিক বিষয়গুলোতে।",
+      feat1Title: "রঙিন নোট", feat1Body: "প্রতিটি সুরের নিজস্ব রঙ আছে, যা আপনাকে সুরলিপি পড়তে এবং বাজাতে শিখতে সাহায্য করে।",
+      feat2Title: "রঙধনু ট্র্যাকার", feat2Body: "এই মুহূর্তে বাজছে এমন নোটের উপর একটি উজ্জ্বল রঙধনু ফুটে ওঠে, যাতে আপনি নিজের জায়গা হারানো ছাড়াই সঙ্গে চলতে পারেন।",
+      feat4Title: "অনুশীলন মোড", feat4Body: "আপনি নিজেই প্রতিটি সুর বাজান — সঠিক কী চাপার আগে অ্যাপ অপেক্ষা করে, যাতে আপনি নিজের গতিতে শিখতে পারেন।",
+      feat5Title: "বিল্ট-ইন পিয়ানো", feat5Body: "নিচের রঙিন কিবোর্ডটি স্টাফের নোটগুলির সাথে মেলে, যাতে আপনি যা দেখেন আর যা বাজান তা যুক্ত করতে পারেন।",
+      feat6Title: "মেট্রোনোম", feat6Body: "আপনার পছন্দের একটি বিট-সাথী সময় ধরে রাখে, যাতে আপনি ছন্দ অনুভব করতে পারেন।",
+      feat7Title: "লার্ন মোড", feat7Body: "অ্যাপ আপনার জন্য গানটি বাজায় — রঙধনু ট্র্যাকার এক সুর থেকে পরের সুরে সরে এবং সংশ্লিষ্ট পিয়ানো কী জ্বলে ওঠে, যাতে আপনি দেখতে ও শুনতে পারেন গানটি কেমন চলে।",
+      installClick: "", installTo: " চাপুন এবং ", installSuffix: " উপভোগ করুন।",
+      installBody1: "ডাউনলোডের দরকার নেই।",
+      installBody2: "চাও যেন এটা অ্যাপের মতো লাগে?",
+      installBody3: "iPad/iPhone-এ Share → Add to Home Screen ট্যাপ করো।",
+      installBody4: "Android-এ মেনু → Install app ট্যাপ করো।",
+      sayHi: "আমরা আপনার বার্তার অপেক্ষায় আছি।",
+      privacy: "গোপনীয়তা", credits: "কৃতজ্ঞতা"
+    },
+    ur: {
+      navFeatures: "خصوصیات", navLaunch: "کھولیں", navHelp: "مدد",
+      tagline: "رنگین نوٹ۔ رنگین چابیاں۔\nموسیقی پڑھنا اور بجانا سیکھیں۔",
+      launch: "آؤ شروع کریں!",
+      ctaSub: "<strong>مفت</strong> · آپ کے براؤزر میں چلتا ہے · انسٹال کی ضرورت نہیں",
+      featuresTitle: "مزہ بنیادی باتوں میں ہے۔",
+      feat1Title: "رنگین نوٹ", feat1Body: "ہر سُر کا اپنا رنگ ہے، جو آپ کو موسیقی پڑھنا اور بجانا سیکھنے میں مدد کرتا ہے۔",
+      feat2Title: "رینبو ٹریکر", feat2Body: "جو نوٹ اس وقت بج رہا ہوتا ہے اس کے اوپر ایک چمکدار قوس قزح ظاہر ہوتا ہے، تاکہ آپ اپنی جگہ کھوئے بغیر ساتھ چل سکیں۔",
+      feat4Title: "پریکٹس موڈ", feat4Body: "آپ خود ہر سُر بجاتے ہیں — ایپ صحیح کی دبانے تک انتظار کرتا ہے، تاکہ آپ اپنی رفتار سے سیکھ سکیں۔",
+      feat5Title: "بلٹ ان پیانو", feat5Body: "نیچے کا رنگین کی بورڈ اسٹاف کے نوٹوں سے ملتا ہے، تاکہ آپ جو دیکھتے اور بجاتے ہیں اسے جوڑ سکیں۔",
+      feat6Title: "میٹرونوم", feat6Body: "آپ کی پسند کا ایک بیٹ ساتھی ٹیمپو رکھتا ہے، تاکہ آپ تال محسوس کر سکیں۔",
+      feat7Title: "لرن موڈ", feat7Body: "ایپ آپ کے لیے گانا بجاتا ہے — قوس قزح ایک نوٹ سے دوسرے نوٹ پر پھسلتا ہے اور متعلقہ پیانو کی روشن ہوتی ہے، تاکہ آپ دیکھ اور سن سکیں کہ گانا کیسے چلتا ہے۔",
+      installClick: "", installTo: " دبائیں اور ", installSuffix: " کا لطف اٹھائیں۔",
+      installBody1: "ڈاؤن لوڈ کی ضرورت نہیں۔",
+      installBody2: "چاہتے ہیں کہ یہ ایپ کی طرح محسوس ہو؟",
+      installBody3: "iPad/iPhone پر Share → Add to Home Screen پر ٹیپ کریں۔",
+      installBody4: "Android پر مینو → Install app پر ٹیپ کریں۔",
+      sayHi: "ہمیں آپ سے سننا اچھا لگے گا۔",
+      privacy: "رازداری", credits: "اعتراف"
+    },
+    ko: {
+      navFeatures: "특징", navLaunch: "실행", navHelp: "도움말",
+      tagline: "색깔 있는 음표. 색깔 있는 건반.\n악보를 읽고 음악을 연주하는 법을 배워요.",
+      launch: "시작해요!",
+      ctaSub: "<strong>무료</strong> · 브라우저에서 실행 · 설치 필요 없음",
+      featuresTitle: "재미는 기본에 있어요.",
+      feat1Title: "색깔 있는 음표", feat1Body: "모든 음에 고유한 색이 있어서 악보를 읽고 연주하는 법을 배우는 데 도움이 됩니다.",
+      feat2Title: "무지개 트래커", feat2Body: "지금 연주되는 음 위에 빛나는 무지개가 나타나, 자리를 놓치지 않고 따라갈 수 있습니다.",
+      feat4Title: "연습 모드", feat4Body: "한 음 한 음 직접 연주해요 — 올바른 건반을 누를 때까지 앱이 기다리니까 자신의 속도로 배울 수 있어요.",
+      feat5Title: "내장 피아노", feat5Body: "화면 아래쪽의 색깔 있는 건반이 악보의 음과 일치해서 보이는 것과 연주하는 것을 연결할 수 있어요.",
+      feat6Title: "메트로놈", feat6Body: "원하는 박자 친구가 박을 맞춰 주어, 리듬을 느낄 수 있어요.",
+      feat7Title: "학습 모드", feat7Body: "앱이 대신 노래를 연주해 줘요 — 무지개 트래커가 음표에서 음표로 미끄러지고 해당 피아노 건반이 밝아지니, 노래가 어떻게 진행되는지 보고 들을 수 있어요.",
+      installClick: "", installTo: " 을(를) 눌러 ", installSuffix: " 을(를) 즐겨요.",
+      installBody1: "다운로드 필요 없음.",
+      installBody2: "앱처럼 느끼고 싶나요?",
+      installBody3: "iPad/iPhone에서 공유 → 홈 화면에 추가를 탭하세요.",
+      installBody4: "Android에서 메뉴 → 앱 설치를 탭하세요.",
+      sayHi: "연락 주시면 좋겠어요.",
+      privacy: "개인정보", credits: "크레딧"
+    },
+    tl: {
+      navFeatures: "Mga Feature", navLaunch: "Buksan", navHelp: "Tulong",
+      tagline: "Makukulay na nota. Makukulay na teklado.\nMatutong bumasa at tumugtog ng musika.",
+      launch: "Arat na!",
+      ctaSub: "<strong>Libre</strong> · tumatakbo sa browser · hindi kailangang i-install",
+      featuresTitle: "Nasa pundasyon ang saya.",
+      feat1Title: "Mga kuloradong nota", feat1Body: "May sariling kulay ang bawat nota para tulungan kang matutong bumasa at tumugtog ng musika.",
+      feat2Title: "Bahaghari tracker", feat2Body: "May kumikinang na bahaghari na lumilitaw sa ibabaw ng notang kasalukuyang tumutugtog, para masundan mo nang hindi mo nawawala ang pinagmumulan mo.",
+      feat4Title: "Practice mode", feat4Body: "Ikaw mismo ang tumutugtog ng bawat nota — naghihintay ang app sa tamang teklado bago mag-usad, para matuto ka sa sarili mong bilis.",
+      feat5Title: "May kasamang piano", feat5Body: "Isang makulay na keyboard sa ibaba na tumutugma sa mga nota sa staff, para maiugnay mo ang nakikita at tinutugtog mo.",
+      feat6Title: "Metronome", feat6Body: "Isang kasama sa beat na pinili mo ang magbabantay ng tempo, para maramdaman mo ang ritmo.",
+      feat7Title: "Learn mode", feat7Body: "Tinutugtog ng app ang kanta para sa iyo — lumilipat ang bahaghari mula isang nota patungo sa susunod at lumiliwanag ang katumbas na piano key, para makita at marinig mo kung paano nagpapatuloy ang kanta.",
+      installClick: "I-click ang ", installTo: " para ", installSuffix: ".",
+      installBody1: "Hindi kailangang mag-download.",
+      installBody2: "Gusto mo bang maging parang app ito?",
+      installBody3: "Sa iPad/iPhone, i-tap ang Share → Add to Home Screen.",
+      installBody4: "Sa Android, i-tap ang menu → Install app.",
+      sayHi: "Gusto naming marinig mula sa iyo.",
+      privacy: "Privacy", credits: "Credits"
+    }
+  };
+
+  const RTL = new Set(["ar", "ur"]);
+
+  function applyLanguage(code) {
+    const dict = TRANSLATIONS[code] || TRANSLATIONS.en;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (dict[key] == null) return;
+      // ctaSub is the only key that ships inline <strong> markup (to bold-caps
+      // the word "Free" per language). Everything else stays as textContent.
+      if (key === "ctaSub") el.innerHTML = dict[key];
+      else el.textContent = dict[key];
+    });
+    document.documentElement.lang = code;
+    document.documentElement.dir = RTL.has(code) ? "rtl" : "ltr";
+    try { localStorage.setItem("rap-lang", code); } catch (e) {}
+  }
+
+  (function init() {
+    const langBtn = document.getElementById("langBtn");
+    const langList = document.getElementById("langList");
+    const currentLabel = langBtn.querySelector(".current-label");
+    const items = Array.from(langList.querySelectorAll('[role="option"]'));
+
+    function setLang(code) {
+      items.forEach(el => {
+        const active = el.dataset.value === code;
+        el.setAttribute("aria-selected", active ? "true" : "false");
+        if (active) currentLabel.textContent = el.querySelector(".native").textContent;
+      });
+      applyLanguage(code);
+    }
+    function openList() {
+      langList.hidden = false;
+      langBtn.setAttribute("aria-expanded", "true");
+      const sel = langList.querySelector('[aria-selected="true"]') || items[0];
+      if (sel) sel.focus();
+    }
+    function closeList(refocus) {
+      langList.hidden = true;
+      langBtn.setAttribute("aria-expanded", "false");
+      if (refocus) langBtn.focus();
+    }
+
+    langBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      langList.hidden ? openList() : closeList();
+    });
+    langBtn.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openList();
+      }
+    });
+
+    items.forEach((el, i) => {
+      el.addEventListener("click", () => { setLang(el.dataset.value); closeList(true); });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); (items[i + 1] || items[0]).focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); (items[i - 1] || items[items.length - 1]).focus(); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLang(el.dataset.value); closeList(true); }
+        else if (e.key === "Escape" || e.key === "Tab") { closeList(e.key === "Escape"); }
+        else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
+        else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
+      });
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!langList.hidden && !langList.contains(e.target) && e.target !== langBtn && !langBtn.contains(e.target)) {
+        closeList();
+      }
+    });
+
+    let saved = null;
+    try { saved = localStorage.getItem("rap-lang"); } catch (e) {}
+    const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
+    const start = saved || (TRANSLATIONS[browserLang] ? browserLang : "en");
+    setLang(start);
+
+    // Highlight the user's OS
+    const ua = navigator.userAgent.toLowerCase();
+    let os = null;
+    if (ua.includes("mac")) os = "mac";
+    else if (ua.includes("win")) os = "windows";
+    else if (ua.includes("linux") && !ua.includes("android")) os = "linux";
+    else if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("android")) os = "mobile";
+    if (os) {
+      const el = document.querySelector(`.platform[data-os="${os}"]`);
+      if (el) el.classList.add("highlighted");
+    }
+  })();
+</script>
+</body>
+</html>

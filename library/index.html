@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Library — R&P Music</title>
+<meta name="description" content="All the songs in R&P Music — tap to play.">
+<link rel="icon" href="/landing/icon.png">
+<link rel="apple-touch-icon" href="/landing/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/landing/icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#9B6BFF">
+<meta name="apple-mobile-web-app-title" content="R&P Music">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Chicle&family=Comic+Neue:wght@400;700&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((e) => console.log('SW reg failed:', e));
+    });
+  }
+</script>
+<style>
+  :root {
+    --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
+    --g: #3b82f6; --a: #a855f7; --b: #ec4899;
+    --bg: #fffdf9; --bg2: #faf8f3; --bg3: #f0ece3;
+    --text: #1a1a1a; --text2: #666; --border: #e5e5e5;
+    --accent: #3b82f6; --danger: #dc2626;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.5; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font-family: inherit; cursor: pointer; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  .rainbow { display: flex; height: 6px; }
+  .rainbow span { flex: 1; }
+  .rainbow span:nth-child(1) { background: var(--c); }
+  .rainbow span:nth-child(2) { background: var(--d); }
+  .rainbow span:nth-child(3) { background: var(--e); }
+  .rainbow span:nth-child(4) { background: var(--f); }
+  .rainbow span:nth-child(5) { background: var(--g); }
+  .rainbow span:nth-child(6) { background: var(--a); }
+  .rainbow span:nth-child(7) { background: var(--b); }
+
+  header { padding: 24px 0; border-bottom: 1px solid var(--border); }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 20px; }
+  .logo img { width: 36px; height: 36px; border-radius: 8px; }
+  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; font-weight: 400; }
+  .brand-logo .r { color: var(--c); }
+  .brand-logo .p { color: var(--g); }
+  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.08em; text-shadow: -2px -2px 0 #a87b00, 2px -2px 0 #a87b00, -2px 2px 0 #a87b00, 2px 2px 0 #a87b00, -2px 0 0 #a87b00, 2px 0 0 #a87b00, 0 -2px 0 #a87b00, 0 2px 0 #a87b00; }
+  .nav-links { display: flex; align-items: center; gap: 20px; }
+  .nav-links a { color: var(--text2); font-size: 15px; }
+
+  main { padding: 40px 0 80px; min-height: 60vh; }
+  h1 { font-size: clamp(32px, 5vw, 44px); font-weight: 800; letter-spacing: -0.01em; text-align: center; margin-bottom: 8px; font-family: inherit; }
+  .subtitle { text-align: center; color: var(--text2); margin-bottom: 32px; }
+
+  /* Profile tabs */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; align-items: center; justify-content: center; }
+  .accounts-bar { margin: 12px 0 0; justify-content: flex-start; gap: 6px; }
+  .accounts-bar .tab { padding: 6px 12px; font-size: 13px; }
+  .tab {
+    padding: 8px 14px; border-radius: 20px;
+    border: 2px solid var(--border); background: var(--bg2);
+    color: var(--text2); font-size: 14px; font-weight: 600;
+    font-family: inherit;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .tab:hover { transform: translateY(-1px); }
+  .tab.active { color: #fff; }
+  .tab.all { padding: 8px 16px; }
+  .tab.add { background: var(--bg3); color: var(--text2); }
+  .tab.delete { background: var(--bg3); color: var(--danger); border-color: var(--border); }
+
+  .songs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .song {
+    position: relative;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .song:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.08); }
+  .song .link {
+    position: absolute; inset: 0; border-radius: 14px; z-index: 0;
+  }
+  .song .play {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0; z-index: 1; pointer-events: none;
+  }
+  .song .info { flex: 1; min-width: 0; z-index: 1; pointer-events: none; }
+  .song .title { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .song .meta { font-size: 13px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song .heart {
+    position: relative; z-index: 2;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: transparent; border: none;
+    font-size: 22px; line-height: 1; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: transform 0.1s;
+  }
+  .song .heart:hover { transform: scale(1.15); }
+
+  /* Admin cards stack title + actions vertically so the title can use the
+     full card width and not get squeezed by the button row. */
+  .admin-visible .song { flex-direction: column; align-items: stretch; gap: 10px; }
+  .admin-visible .song .info { width: 100%; }
+  .admin-visible .song .title { white-space: normal; }
+  .admin-visible .song .meta { white-space: normal; }
+  /* Admin action cluster — Open / Publish / Delete per card. */
+  .admin-actions { position: relative; z-index: 2; display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-btn {
+    padding: 6px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg3);
+    color: var(--text); font-size: 12px; font-weight: 700;
+    font-family: inherit; white-space: nowrap;
+    transition: transform 0.08s;
+  }
+  .action-btn:hover { transform: translateY(-1px); }
+  .action-btn.action-open { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .action-btn.action-publish { background: #16a34a; color: #fff; border-color: #16a34a; }
+  .action-btn.action-publish.published { background: #f97316; color: #fff; border-color: #f97316; }
+  .action-btn.action-delete { color: var(--danger); }
+
+  .empty { text-align: center; padding: 80px 20px; color: var(--text2); }
+  .empty .emoji { font-size: 56px; margin-bottom: 16px; }
+
+  /* Add-profile modal */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; z-index: 100;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal {
+    background: var(--bg); border-radius: 16px; padding: 28px;
+    max-width: 360px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    margin-top: 20px; margin-bottom: 20px;
+  }
+  .modal h2 { font-size: 22px; margin-bottom: 16px; font-family: inherit; }
+  .modal label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; margin-top: 12px; }
+  .modal input[type=text],
+  .modal input[type=password] {
+    width: 100%; padding: 10px 14px; font-size: 16px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; outline: none;
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .swatch {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid transparent; cursor: pointer; transition: transform 0.1s;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.selected { border-color: var(--text); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+  .btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 14px; font-weight: 600; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Owner-only library enhancements */
+  .search-bar { display: none; margin: 0 auto 20px; max-width: 420px; position: relative; }
+  .search-bar input {
+    width: 100%; padding: 10px 14px 10px 36px; font-size: 15px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: inherit; outline: none;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar::before { content: "🔍"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+  .admin-visible .search-bar { display: block; }
+  .status-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; margin-left: 6px; letter-spacing: 0.03em; vertical-align: middle;
+  }
+  .status-badge.published { background: #16a34a22; color: #16a34a; }
+  .status-badge.unpublished { background: #f9731622; color: #f97316; }
+  .sort-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sort-bar button {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg2); color: var(--text2); font-size: 13px; font-weight: 600;
+  }
+  .sort-bar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  /* Recent is admin-only; hide it in baby mode. */
+  .sort-bar button[data-sort="recent"] { display: none; }
+  .admin-visible .sort-bar button[data-sort="recent"] { display: inline-block; }
+
+  /* A-Z filter strip — big, tappable, kid-friendly. */
+  .alphabet { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 24px; }
+  .alpha-btn {
+    min-width: 38px; height: 38px; padding: 0 10px;
+    border-radius: 8px; border: 2px solid var(--border); background: var(--bg2);
+    color: var(--text); font-weight: 700; font-size: 16px; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s;
+  }
+  .alpha-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .alpha-btn:disabled { color: var(--text2); opacity: 0.3; cursor: default; }
+  .alpha-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  footer { padding: 40px 0; text-align: center; color: var(--text2); font-size: 14px; border-top: 1px solid var(--border); }
+  footer .credit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  footer .heart-notes { display: inline-flex; vertical-align: middle; filter: drop-shadow(0 0 6px rgba(255, 7, 58, 0.55)) drop-shadow(0 0 14px rgba(255, 7, 58, 0.35)); }
+
+  @media (max-width: 600px) {
+    main { padding: 24px 0 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rainbow"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+<header>
+  <div class="container nav">
+    <div class="logo">
+      <img src="/landing/icon.png" alt="R&P Music logo">
+      <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span>
+    </div>
+    <nav class="nav-links">
+      <a href="/" data-i18n="navHome">Home</a>
+      <a href="/app" data-i18n="navLaunchApp">Launch app</a>
+    </nav>
+  </div>
+  <div class="container">
+    <div class="tabs accounts-bar" id="accountsBar"></div>
+  </div>
+</header>
+
+<main class="container">
+  <h1>📚 <span data-i18n="pageTitle">Song Library</span></h1>
+  <p class="subtitle" id="subtitle" data-i18n="subtitle">Pick a song to play.</p>
+
+  <div class="search-bar">
+    <input id="searchInput" type="text" placeholder="Search songs…" autocomplete="off">
+  </div>
+  <div class="sort-bar" id="sortBar">
+    <button data-sort="recent">Recent</button>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="alphabet" id="alphabet"></div>
+
+  <div id="songs" class="songs" hidden></div>
+  <div id="empty" class="empty" hidden>
+    <div class="emoji">🎵</div>
+    <p id="emptyMsg">No songs yet.</p>
+  </div>
+  <div id="loading" class="empty" data-i18n="loading">Loading…</div>
+</main>
+
+<!-- Add-profile modal -->
+<div id="addBackdrop" class="backdrop" hidden>
+  <div class="modal" role="dialog" aria-label="Add person">
+    <h2>❤️ <span data-i18n="modalTitle">Add an account</span></h2>
+    <label for="nameInput"><span data-i18n="modalName">Name</span></label>
+    <input id="nameInput" type="text" maxlength="24" autocomplete="off">
+    <label for="passwordInput"><span data-i18n="modalPassword">Password</span> <span style="color:var(--text2);font-weight:400" data-i18n="modalPasswordHelp">(needed to delete this account)</span></label>
+    <input id="passwordInput" type="password" maxlength="64" autocomplete="new-password">
+    <label for="hintInput"><span data-i18n="modalHint">Password hint</span> <span style="color:var(--text2);font-weight:400" data-i18n="modalHintHelp">(a nudge to jog your memory — don't write the password itself)</span></label>
+    <input id="hintInput" type="text" maxlength="64">
+    <label data-i18n="modalColor">Favourite color</label>
+    <div class="color-swatches" id="swatches"></div>
+    <div id="addError" style="color:var(--danger);font-size:13px;margin-top:12px;display:none"></div>
+    <div class="modal-actions">
+      <button class="btn" id="addCancel" data-i18n="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="addSave" data-i18n="modalCreate">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const COLORS = ['#dc2626','#f97316','#fde047','#22c55e','#3b82f6','#a855f7','#ec4899'];
+
+  // ─── i18n ───────────────────────────────────────────────────────────
+  const T = {
+    en: {
+      navHome: "Home", navLaunchApp: "Launch app",
+      pageTitle: "Song Library", subtitle: "Pick a song to play.",
+      tabAll: "All songs", tabAdd: "+ Add account", tabDelete: "− Delete account",
+      emptyAll: "No songs published yet.",
+      emptyProfile: '{name} hasn\u0027t saved any songs yet. Tap the heart on a song in All songs to save it.',
+      loading: "Loading…",
+      modalTitle: "Add an account", modalName: "Name", modalNamePlaceholder: "e.g. Alice",
+      modalPassword: "Password", modalPasswordHelp: "(needed to delete this account)", modalPasswordPlaceholder: "Pick a password",
+      modalHint: "Password hint", modalHintHelp: "(a nudge to jog your memory — don\u0027t write the password itself)", modalHintPlaceholder: "e.g. my pet\u0027s name",
+      modalColor: "Favourite color", modalCancel: "Cancel", modalCreate: "Create",
+      errName: "Please enter a name.", errDuplicate: "That name already exists.", errPassword: "Pick a password (3+ characters).",
+      wrongPassword: "Wrong password.",
+      confirmDelete: 'Delete "{name}" and their song list?',
+      promptPassword: 'Enter password for "{name}" to delete.',
+      hintLabel: "Hint",
+      measureSingular: "measure", measurePlural: "measures",
+      untitled: "Untitled",
+      ariaOpen: "Open {title}", ariaSave: "Save to my list"
+    },
+    zh: {
+      navHome: "首页", navLaunchApp: "启动应用",
+      pageTitle: "歌曲库", subtitle: "选一首歌来弹奏。",
+      tabAll: "所有歌曲", tabAdd: "+ 添加账户", tabDelete: "− 删除账户",
+      emptyAll: "还没有发布任何歌曲。",
+      emptyProfile: "{name} 还没有收藏任何歌曲。点击“所有歌曲”里的心形图标来保存。",
+      loading: "加载中…",
+      modalTitle: "添加一个账户", modalName: "名字", modalNamePlaceholder: "例如：小明",
+      modalPassword: "密码", modalPasswordHelp: "（删除此账户需要）", modalPasswordPlaceholder: "设置一个密码",
+      modalHint: "密码提示", modalHintHelp: "（帮助回忆的提示——别写密码本身）", modalHintPlaceholder: "例如：我宠物的名字",
+      modalColor: "最喜欢的颜色", modalCancel: "取消", modalCreate: "创建",
+      errName: "请输入名字。", errDuplicate: "该名字已存在。", errPassword: "请设置密码（至少 3 个字符）。",
+      wrongPassword: "密码错误。",
+      confirmDelete: "删除 “{name}” 和他们的歌单吗？",
+      promptPassword: "输入 “{name}” 的密码以删除。",
+      hintLabel: "提示",
+      measureSingular: "小节", measurePlural: "小节",
+      untitled: "无标题",
+      ariaOpen: "打开 {title}", ariaSave: "保存到我的列表"
+    },
+    hi: {
+      navHome: "होम", navLaunchApp: "ऐप खोलें",
+      pageTitle: "गीत पुस्तकालय", subtitle: "एक गाना चुनें।",
+      tabAll: "सभी गाने", tabAdd: "+ खाता जोड़ें", tabDelete: "− खाता हटाएँ",
+      emptyAll: "अभी कोई गाना प्रकाशित नहीं हुआ है।",
+      emptyProfile: "{name} ने अभी तक कोई गाना नहीं सहेजा है। ‘सभी गाने’ में किसी गाने के दिल पर टैप करके सहेजें।",
+      loading: "लोड हो रहा है…",
+      modalTitle: "एक खाता जोड़ें", modalName: "नाम", modalNamePlaceholder: "जैसे: आलिया",
+      modalPassword: "पासवर्ड", modalPasswordHelp: "(इस खाते को हटाने के लिए ज़रूरी)", modalPasswordPlaceholder: "एक पासवर्ड चुनें",
+      modalHint: "पासवर्ड संकेत", modalHintHelp: "(याद दिलाने के लिए इशारा — पासवर्ड मत लिखें)", modalHintPlaceholder: "जैसे: मेरे पालतू का नाम",
+      modalColor: "पसंदीदा रंग", modalCancel: "रद्द", modalCreate: "बनाएँ",
+      errName: "कृपया नाम डालें।", errDuplicate: "यह नाम पहले से है।", errPassword: "पासवर्ड चुनें (कम से कम 3 अक्षर)।",
+      wrongPassword: "गलत पासवर्ड।",
+      confirmDelete: "“{name}” और उनका गानों का सूची हटाएँ?",
+      promptPassword: "“{name}” को हटाने के लिए पासवर्ड डालें।",
+      hintLabel: "संकेत",
+      measureSingular: "माप", measurePlural: "माप",
+      untitled: "शीर्षकहीन",
+      ariaOpen: "{title} खोलें", ariaSave: "मेरी सूची में सहेजें"
+    },
+    es: {
+      navHome: "Inicio", navLaunchApp: "Abrir app",
+      pageTitle: "Biblioteca de canciones", subtitle: "Elige una canción para tocar.",
+      tabAll: "Todas las canciones", tabAdd: "+ Añadir cuenta", tabDelete: "− Eliminar cuenta",
+      emptyAll: "Aún no se han publicado canciones.",
+      emptyProfile: "{name} aún no ha guardado canciones. Toca el corazón en una canción de Todas para guardarla.",
+      loading: "Cargando…",
+      modalTitle: "Añadir una cuenta", modalName: "Nombre", modalNamePlaceholder: "p. ej. Alicia",
+      modalPassword: "Contraseña", modalPasswordHelp: "(necesaria para eliminar esta cuenta)", modalPasswordPlaceholder: "Elige una contraseña",
+      modalHint: "Pista de la contraseña", modalHintHelp: "(algo que te ayude a recordarla — no escribas la contraseña)", modalHintPlaceholder: "p. ej. el nombre de mi mascota",
+      modalColor: "Color favorito", modalCancel: "Cancelar", modalCreate: "Crear",
+      errName: "Por favor ingresa un nombre.", errDuplicate: "Ese nombre ya existe.", errPassword: "Elige una contraseña (3+ caracteres).",
+      wrongPassword: "Contraseña incorrecta.",
+      confirmDelete: "¿Eliminar \"{name}\" y su lista de canciones?",
+      promptPassword: "Ingresa la contraseña de \"{name}\" para eliminar.",
+      hintLabel: "Pista",
+      measureSingular: "compás", measurePlural: "compases",
+      untitled: "Sin título",
+      ariaOpen: "Abrir {title}", ariaSave: "Guardar en mi lista"
+    },
+    fr: {
+      navHome: "Accueil", navLaunchApp: "Ouvrir l\u0027app",
+      pageTitle: "Bibliothèque de chansons", subtitle: "Choisis une chanson.",
+      tabAll: "Toutes les chansons", tabAdd: "+ Ajouter un compte", tabDelete: "− Supprimer le compte",
+      emptyAll: "Aucune chanson publiée pour l\u0027instant.",
+      emptyProfile: "{name} n\u0027a encore sauvegardé aucune chanson. Touche le cœur sur une chanson dans Toutes pour la sauvegarder.",
+      loading: "Chargement…",
+      modalTitle: "Ajouter un compte", modalName: "Nom", modalNamePlaceholder: "ex. Alice",
+      modalPassword: "Mot de passe", modalPasswordHelp: "(nécessaire pour supprimer ce compte)", modalPasswordPlaceholder: "Choisis un mot de passe",
+      modalHint: "Indice du mot de passe", modalHintHelp: "(un petit rappel — n\u0027écris pas le mot de passe)", modalHintPlaceholder: "ex. le nom de mon animal",
+      modalColor: "Couleur préférée", modalCancel: "Annuler", modalCreate: "Créer",
+      errName: "Entre un nom s\u0027il te plaît.", errDuplicate: "Ce nom existe déjà.", errPassword: "Choisis un mot de passe (3+ caractères).",
+      wrongPassword: "Mot de passe incorrect.",
+      confirmDelete: "Supprimer \"{name}\" et sa liste de chansons ?",
+      promptPassword: "Entre le mot de passe de \"{name}\" pour supprimer.",
+      hintLabel: "Indice",
+      measureSingular: "mesure", measurePlural: "mesures",
+      untitled: "Sans titre",
+      ariaOpen: "Ouvrir {title}", ariaSave: "Enregistrer dans ma liste"
+    },
+    ar: {
+      navHome: "الرئيسية", navLaunchApp: "افتح التطبيق",
+      pageTitle: "مكتبة الأغاني", subtitle: "اختر أغنية لعزفها.",
+      tabAll: "كل الأغاني", tabAdd: "+ إضافة حساب", tabDelete: "− حذف الحساب",
+      emptyAll: "لم تُنشر أيّ أغنية بعد.",
+      emptyProfile: "لم يحفظ {name} أيّ أغنية بعد. اضغط على القلب في أيّ أغنية ضمن ‹كل الأغاني› لحفظها.",
+      loading: "جاري التحميل…",
+      modalTitle: "إضافة حساب", modalName: "الاسم", modalNamePlaceholder: "مثال: علياء",
+      modalPassword: "كلمة المرور", modalPasswordHelp: "(مطلوبة لحذف هذا الحساب)", modalPasswordPlaceholder: "اختر كلمة مرور",
+      modalHint: "تلميح كلمة المرور", modalHintHelp: "(شيء يُذكّرك — لا تكتب كلمة المرور نفسها)", modalHintPlaceholder: "مثال: اسم حيواني الأليف",
+      modalColor: "اللون المفضّل", modalCancel: "إلغاء", modalCreate: "إنشاء",
+      errName: "الرجاء إدخال اسم.", errDuplicate: "هذا الاسم موجود مسبقاً.", errPassword: "اختر كلمة مرور (3 أحرف أو أكثر).",
+      wrongPassword: "كلمة مرور خاطئة.",
+      confirmDelete: "حذف \"{name}\" وقائمة أغانيهم؟",
+      promptPassword: "أدخل كلمة مرور \"{name}\" للحذف.",
+      hintLabel: "تلميح",
+      measureSingular: "مقياس", measurePlural: "مقاييس",
+      untitled: "بدون عنوان",
+      ariaOpen: "افتح {title}", ariaSave: "احفظ في قائمتي"
+    },
+    pt: {
+      navHome: "Início", navLaunchApp: "Abrir app",
+      pageTitle: "Biblioteca de músicas", subtitle: "Escolha uma música para tocar.",
+      tabAll: "Todas as músicas", tabAdd: "+ Adicionar conta", tabDelete: "− Apagar conta",
+      emptyAll: "Nenhuma música publicada ainda.",
+      emptyProfile: "{name} ainda não salvou nenhuma música. Toque no coração em uma música de Todas para salvar.",
+      loading: "Carregando…",
+      modalTitle: "Adicionar uma conta", modalName: "Nome", modalNamePlaceholder: "ex.: Alice",
+      modalPassword: "Senha", modalPasswordHelp: "(necessária para apagar esta conta)", modalPasswordPlaceholder: "Escolha uma senha",
+      modalHint: "Dica da senha", modalHintHelp: "(algo que te ajude a lembrar — não escreva a senha)", modalHintPlaceholder: "ex.: nome do meu animal",
+      modalColor: "Cor favorita", modalCancel: "Cancelar", modalCreate: "Criar",
+      errName: "Por favor, insira um nome.", errDuplicate: "Esse nome já existe.", errPassword: "Escolha uma senha (3+ caracteres).",
+      wrongPassword: "Senha incorreta.",
+      confirmDelete: "Apagar \"{name}\" e a lista de músicas dele(a)?",
+      promptPassword: "Insira a senha de \"{name}\" para apagar.",
+      hintLabel: "Dica",
+      measureSingular: "compasso", measurePlural: "compassos",
+      untitled: "Sem título",
+      ariaOpen: "Abrir {title}", ariaSave: "Salvar na minha lista"
+    },
+    ru: {
+      navHome: "Главная", navLaunchApp: "Открыть приложение",
+      pageTitle: "Библиотека песен", subtitle: "Выбери песню для игры.",
+      tabAll: "Все песни", tabAdd: "+ Добавить аккаунт", tabDelete: "− Удалить аккаунт",
+      emptyAll: "Пока нет опубликованных песен.",
+      emptyProfile: "{name} пока не сохранил ни одной песни. Нажми на сердечко у песни во «Все песни», чтобы сохранить.",
+      loading: "Загрузка…",
+      modalTitle: "Добавить аккаунт", modalName: "Имя", modalNamePlaceholder: "напр. Аня",
+      modalPassword: "Пароль", modalPasswordHelp: "(нужен, чтобы удалить аккаунт)", modalPasswordPlaceholder: "Выбери пароль",
+      modalHint: "Подсказка к паролю", modalHintHelp: "(что-то, что напомнит — сам пароль не пиши)", modalHintPlaceholder: "напр. кличка питомца",
+      modalColor: "Любимый цвет", modalCancel: "Отмена", modalCreate: "Создать",
+      errName: "Пожалуйста, введи имя.", errDuplicate: "Это имя уже существует.", errPassword: "Выбери пароль (3+ символа).",
+      wrongPassword: "Неверный пароль.",
+      confirmDelete: "Удалить «{name}» и их список песен?",
+      promptPassword: "Введи пароль «{name}», чтобы удалить.",
+      hintLabel: "Подсказка",
+      measureSingular: "такт", measurePlural: "тактов",
+      untitled: "Без названия",
+      ariaOpen: "Открыть {title}", ariaSave: "Сохранить в мой список"
+    },
+    ja: {
+      navHome: "ホーム", navLaunchApp: "アプリを開く",
+      pageTitle: "曲ライブラリ", subtitle: "弾く曲を選ぼう。",
+      tabAll: "すべての曲", tabAdd: "+ アカウントを追加", tabDelete: "− アカウントを削除",
+      emptyAll: "まだ公開された曲はありません。",
+      emptyProfile: "{name} はまだ曲を保存していません。『すべての曲』でハートをタップして保存しよう。",
+      loading: "読み込み中…",
+      modalTitle: "アカウントを追加", modalName: "名前", modalNamePlaceholder: "例：ゆか",
+      modalPassword: "パスワード", modalPasswordHelp: "（アカウント削除に必要）", modalPasswordPlaceholder: "パスワードを決めてね",
+      modalHint: "パスワードのヒント", modalHintHelp: "（思い出すための手がかり — パスワードそのものは書かないで）", modalHintPlaceholder: "例：ペットの名前",
+      modalColor: "好きな色", modalCancel: "キャンセル", modalCreate: "作成",
+      errName: "名前を入力してください。", errDuplicate: "その名前はすでにあります。", errPassword: "パスワードを決めてください（3文字以上）。",
+      wrongPassword: "パスワードが違います。",
+      confirmDelete: "「{name}」とその曲リストを削除しますか？",
+      promptPassword: "「{name}」を削除するにはパスワードを入力してください。",
+      hintLabel: "ヒント",
+      measureSingular: "小節", measurePlural: "小節",
+      untitled: "タイトルなし",
+      ariaOpen: "{title} を開く", ariaSave: "マイリストに保存"
+    },
+    bn: {
+      navHome: "হোম", navLaunchApp: "অ্যাপ খুলুন",
+      pageTitle: "গানের লাইব্রেরি", subtitle: "বাজানোর জন্য একটি গান বেছে নিন।",
+      tabAll: "সব গান", tabAdd: "+ অ্যাকাউন্ট যোগ করুন", tabDelete: "− অ্যাকাউন্ট মুছুন",
+      emptyAll: "এখনো কোনো গান প্রকাশিত হয়নি।",
+      emptyProfile: "{name} এখনো কোনো গান সংরক্ষণ করেননি। ‘সব গান’-এ কোনো গানের হার্টে ট্যাপ করে সংরক্ষণ করুন।",
+      loading: "লোড হচ্ছে…",
+      modalTitle: "একটি অ্যাকাউন্ট যোগ করুন", modalName: "নাম", modalNamePlaceholder: "যেমন: তানিয়া",
+      modalPassword: "পাসওয়ার্ড", modalPasswordHelp: "(এই অ্যাকাউন্ট মুছতে প্রয়োজন)", modalPasswordPlaceholder: "একটি পাসওয়ার্ড বেছে নিন",
+      modalHint: "পাসওয়ার্ড হিন্ট", modalHintHelp: "(মনে করিয়ে দেওয়ার ইশারা — পাসওয়ার্ড লিখবেন না)", modalHintPlaceholder: "যেমন: পোষ্যের নাম",
+      modalColor: "পছন্দের রঙ", modalCancel: "বাতিল", modalCreate: "তৈরি করুন",
+      errName: "অনুগ্রহ করে একটি নাম দিন।", errDuplicate: "এই নাম ইতিমধ্যে আছে।", errPassword: "পাসওয়ার্ড বেছে নিন (৩+ অক্ষর)।",
+      wrongPassword: "ভুল পাসওয়ার্ড।",
+      confirmDelete: "“{name}” এবং তাদের গানের তালিকা মুছবেন?",
+      promptPassword: "মুছতে “{name}”-এর পাসওয়ার্ড দিন।",
+      hintLabel: "হিন্ট",
+      measureSingular: "মাত্রা", measurePlural: "মাত্রা",
+      untitled: "শিরোনামহীন",
+      ariaOpen: "{title} খুলুন", ariaSave: "আমার তালিকায় সংরক্ষণ করুন"
+    },
+    ur: {
+      navHome: "ہوم", navLaunchApp: "ایپ کھولیں",
+      pageTitle: "گانوں کی لائبریری", subtitle: "بجانے کے لیے ایک گانا چنیں۔",
+      tabAll: "تمام گانے", tabAdd: "+ اکاؤنٹ شامل کریں", tabDelete: "− اکاؤنٹ حذف کریں",
+      emptyAll: "ابھی تک کوئی گانا شائع نہیں ہوا۔",
+      emptyProfile: "{name} نے ابھی تک کوئی گانا محفوظ نہیں کیا۔ ‘تمام گانوں’ میں کسی گانے کے دل پر ٹیپ کر کے محفوظ کریں۔",
+      loading: "لوڈ ہو رہا ہے…",
+      modalTitle: "ایک اکاؤنٹ شامل کریں", modalName: "نام", modalNamePlaceholder: "مثلاً: ثنا",
+      modalPassword: "پاس ورڈ", modalPasswordHelp: "(یہ اکاؤنٹ حذف کرنے کے لیے درکار)", modalPasswordPlaceholder: "ایک پاس ورڈ چنیں",
+      modalHint: "پاس ورڈ اشارہ", modalHintHelp: "(یاد دلانے کے لیے اشارہ — پاس ورڈ خود نہ لکھیں)", modalHintPlaceholder: "مثلاً: میرے پالتو کا نام",
+      modalColor: "پسندیدہ رنگ", modalCancel: "منسوخ", modalCreate: "بنائیں",
+      errName: "براہ کرم نام درج کریں۔", errDuplicate: "یہ نام پہلے سے موجود ہے۔", errPassword: "ایک پاس ورڈ چنیں (3+ حروف)۔",
+      wrongPassword: "غلط پاس ورڈ۔",
+      confirmDelete: "“{name}” اور ان کی گانوں کی فہرست حذف کریں؟",
+      promptPassword: "حذف کرنے کے لیے “{name}” کا پاس ورڈ درج کریں۔",
+      hintLabel: "اشارہ",
+      measureSingular: "تال", measurePlural: "تال",
+      untitled: "بغیر عنوان",
+      ariaOpen: "{title} کھولیں", ariaSave: "میری فہرست میں محفوظ کریں"
+    },
+    ko: {
+      navHome: "홈", navLaunchApp: "앱 실행",
+      pageTitle: "곡 보관함", subtitle: "연주할 곡을 골라요.",
+      tabAll: "모든 곡", tabAdd: "+ 계정 추가", tabDelete: "− 계정 삭제",
+      emptyAll: "아직 공개된 곡이 없습니다.",
+      emptyProfile: "{name}님은 아직 저장한 곡이 없어요. ‘모든 곡’에서 곡의 하트를 눌러 저장하세요.",
+      loading: "로딩 중…",
+      modalTitle: "계정 추가", modalName: "이름", modalNamePlaceholder: "예: 지민",
+      modalPassword: "비밀번호", modalPasswordHelp: "(이 계정을 삭제하려면 필요)", modalPasswordPlaceholder: "비밀번호를 정하세요",
+      modalHint: "비밀번호 힌트", modalHintHelp: "(기억을 돕는 힌트 — 비밀번호 자체는 쓰지 마세요)", modalHintPlaceholder: "예: 반려동물 이름",
+      modalColor: "좋아하는 색", modalCancel: "취소", modalCreate: "만들기",
+      errName: "이름을 입력해 주세요.", errDuplicate: "이미 있는 이름입니다.", errPassword: "비밀번호를 정하세요 (3자 이상).",
+      wrongPassword: "비밀번호가 틀렸습니다.",
+      confirmDelete: "\"{name}\"과(와) 그들의 곡 목록을 삭제할까요?",
+      promptPassword: "\"{name}\"을(를) 삭제하려면 비밀번호를 입력하세요.",
+      hintLabel: "힌트",
+      measureSingular: "마디", measurePlural: "마디",
+      untitled: "제목 없음",
+      ariaOpen: "{title} 열기", ariaSave: "내 목록에 저장"
+    },
+    tl: {
+      navHome: "Home", navLaunchApp: "Buksan ang app",
+      pageTitle: "Song Library", subtitle: "Pumili ng kanta para tugtugin.",
+      tabAll: "Lahat ng kanta", tabAdd: "+ Magdagdag ng account", tabDelete: "− Tanggalin ang account",
+      emptyAll: "Wala pang kantang nakapublish.",
+      emptyProfile: "Wala pang naka-save na kanta si {name}. I-tap ang heart sa isang kanta sa Lahat para i-save.",
+      loading: "Naglo-load…",
+      modalTitle: "Magdagdag ng account", modalName: "Pangalan", modalNamePlaceholder: "hal. Alice",
+      modalPassword: "Password", modalPasswordHelp: "(kailangan para tanggalin ang account na ito)", modalPasswordPlaceholder: "Pumili ng password",
+      modalHint: "Password hint", modalHintHelp: "(bagay na tulong sa pag-alala — huwag ilagay ang password mismo)", modalHintPlaceholder: "hal. pangalan ng alaga",
+      modalColor: "Paboritong kulay", modalCancel: "Kanselahin", modalCreate: "Gumawa",
+      errName: "Pakilagay ang pangalan.", errDuplicate: "May ganyang pangalan na.", errPassword: "Pumili ng password (3+ na karakter).",
+      wrongPassword: "Maling password.",
+      confirmDelete: "Tanggalin ang \"{name}\" at ang kanilang listahan ng kanta?",
+      promptPassword: "Ilagay ang password ni \"{name}\" para tanggalin.",
+      hintLabel: "Hint",
+      measureSingular: "sukat", measurePlural: "sukat",
+      untitled: "Walang pamagat",
+      ariaOpen: "Buksan ang {title}", ariaSave: "I-save sa listahan ko"
+    }
+  };
+
+  const RTL = new Set(["ar", "ur"]);
+  let lang = "en";
+  try { lang = localStorage.getItem("rap-lang") || ""; } catch (e) {}
+  if (!T[lang]) lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+  if (!T[lang]) lang = "en";
+  const t = T[lang];
+  const tr = (key, vars) => {
+    let s = t[key] != null ? t[key] : (T.en[key] || key);
+    if (vars) for (const k of Object.keys(vars)) s = s.replace('{' + k + '}', vars[k]);
+    return s;
+  };
+
+  // Apply static translations
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (t[k] != null) el.textContent = t[k];
+  });
+  // Placeholders (not covered by data-i18n with textContent)
+  document.getElementById('nameInput').placeholder = tr('modalNamePlaceholder');
+  document.getElementById('passwordInput').placeholder = tr('modalPasswordPlaceholder');
+  document.getElementById('hintInput').placeholder = tr('modalHintPlaceholder');
+
+  document.documentElement.lang = lang;
+  document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
+  document.title = tr('pageTitle') + " — R&P Music";
+
+  // --- Storage (mirrors the in-app keys so accounts created here show up there and vice versa) ---
+  function readProfiles() {
+    try { return JSON.parse(localStorage.getItem('profiles') || '{}'); } catch { return {}; }
+  }
+  function writeProfiles(p) {
+    localStorage.setItem('profiles', JSON.stringify(p));
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'rpm-profiles-changed' }, window.location.origin);
+      }
+    } catch {}
+  }
+  function getActiveName() { return localStorage.getItem('playerName') || ''; }
+  function setActiveName(n) {
+    if (n) localStorage.setItem('playerName', n); else localStorage.removeItem('playerName');
+    // Tell the parent app (when embedded) that the active profile has changed,
+    // so its React state can re-sync from localStorage without a page refresh.
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { type: 'rpm-profile-changed', playerName: n || '' },
+          window.location.origin
+        );
+      }
+    } catch {}
+  }
+  function profileColor(name, profiles) {
+    return (profiles[name] && profiles[name].color) || '#3b82f6';
+  }
+
+  // Owner-only library features kick in when the server injects this flag
+  // on the secret URL. In that mode we fetch /api/songs (all + status) and
+  // expose search / sort / status badges.
+  const isAdmin = window.__RPM_LIBRARY_ADMIN__ === true;
+  if (isAdmin) document.body.classList.add('admin-visible');
+  // In admin mode, derive the edit URL prefix from the current path
+  // (e.g. /<EDIT_PATH>/library → /<EDIT_PATH>). Song clicks open edit mode.
+  const editPrefix = isAdmin
+    ? window.location.pathname.replace(/\/library\/?$/, '')
+    : '/app';
+
+  // --- Embed mode ---
+  // When the library is rendered inside the main app's iframe overlay,
+  // intercept song-selection clicks and postMessage the title to the parent
+  // instead of navigating (parent preserves fullscreen / audio context).
+  const IS_EMBED = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('embed') === '1' || (window.parent && window.parent !== window);
+    } catch { return false; }
+  })();
+  if (IS_EMBED) {
+    document.addEventListener('click', (e) => {
+      const a = e.target && e.target.closest && e.target.closest('a.link');
+      if (!a) return;
+      e.preventDefault();
+      try {
+        const u = new URL(a.href, window.location.origin);
+        const title = u.searchParams.get('song');
+        if (title) {
+          window.parent.postMessage(
+            { type: 'rpm-open-song', title: decodeURIComponent(title) },
+            window.location.origin
+          );
+        }
+      } catch {}
+    }, true);
+  }
+
+  // --- State ---
+  let allSongs = [];
+  let profiles = readProfiles();
+  let activeName = getActiveName();
+  // "all" shows every published song; otherwise a profile name filters the list.
+  // Default tab: baby/public viewers ALWAYS land on the R&P Music category,
+  // regardless of which profile is active. Admins still get their usual
+  // "profile if set, else all songs" behavior.
+  let tab = isAdmin
+    ? (activeName && profiles[activeName] ? activeName : 'all')
+    : 'rpmusic';
+  let searchQuery = '';
+  let sortBy = 'difficulty'; // 'title' | 'difficulty' | 'recent'
+  let letterFilter = 'all';  // 'all' | 'A'..'Z' | '#' (non-alphabetic titles)
+
+  function firstLetter(song) {
+    const raw = (song.title || (song._filename || '').replace(/\.json$/, '')).trim();
+    const ch = (raw[0] || '').toUpperCase();
+    return ch;
+  }
+
+  const els = {
+    tabs: document.getElementById('tabs'),
+    accountsBar: document.getElementById('accountsBar'),
+    alphabet: document.getElementById('alphabet'),
+    songs: document.getElementById('songs'),
+    empty: document.getElementById('empty'),
+    emptyMsg: document.getElementById('emptyMsg'),
+    loading: document.getElementById('loading'),
+    subtitle: document.getElementById('subtitle'),
+    addBackdrop: document.getElementById('addBackdrop'),
+    nameInput: document.getElementById('nameInput'),
+    passwordInput: document.getElementById('passwordInput'),
+    hintInput: document.getElementById('hintInput'),
+    swatches: document.getElementById('swatches'),
+    addCancel: document.getElementById('addCancel'),
+    addSave: document.getElementById('addSave'),
+    addError: document.getElementById('addError'),
+  };
+
+  // SHA-256 hash, hex-encoded. Used to gate account deletion. localStorage is
+  // not a secure store, so this keeps a sibling from trivially reading the
+  // password — it does not protect against someone who opens devtools.
+  async function sha256Hex(text) {
+    const buf = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // --- Render: profile tabs ---
+  // Layout:
+  //   accountsBar (under the logo): profile chips + "+ Add account" + (optional) "- Delete account"
+  //   tabs (under the sort bar): "📚 All songs"
+  function renderTabs() {
+    els.tabs.innerHTML = '';
+    els.accountsBar.innerHTML = '';
+
+    // Top row (under the logo): + Add, then - Delete, then profile chips.
+    // A chip is highlighted when it's the active account (activeName), not
+    // when it's the current filter tab — so the active user stays visibly
+    // marked even after switching to "All songs".
+    // "+ Add account" is for families using the public library to add their
+    // kids' profiles — the admin/edit view doesn't need it.
+    if (!isAdmin) {
+      const addBtn = button(tr('tabAdd'), 'tab add');
+      addBtn.onclick = openAddModal;
+      els.accountsBar.appendChild(addBtn);
+    }
+
+    if (tab !== 'all' && profiles[tab]) {
+      const delBtn = button(tr('tabDelete'), 'tab delete');
+      delBtn.onclick = async () => {
+        const target = tab;
+        const stored = profiles[target] && profiles[target].passwordHash;
+        if (stored) {
+          const hint = profiles[target] && profiles[target].hint;
+          const msg = hint
+            ? tr('promptPassword', {name: target}) + '\n\n' + tr('hintLabel') + ': ' + hint
+            : tr('promptPassword', {name: target});
+          const pw = prompt(msg);
+          if (pw == null) return; // cancelled
+          const hash = await sha256Hex(pw);
+          if (hash !== stored) { alert(tr('wrongPassword')); return; }
+        } else {
+          if (!confirm(tr('confirmDelete', {name: target}))) return;
+        }
+        delete profiles[target];
+        writeProfiles(profiles);
+        if (activeName === target) { activeName = ''; setActiveName(''); }
+        tab = 'all';
+        letterFilter = 'all';
+        renderTabs();
+        renderAlphabet();
+        renderSongs();
+      };
+      els.accountsBar.appendChild(delBtn);
+    }
+
+    Object.keys(profiles).forEach(name => {
+      const color = profileColor(name, profiles);
+      const count = (profiles[name].songs || []).length;
+      const isActive = activeName === name;
+      const btn = button(`❤ ${name}${count ? ` (${count})` : ''}`, 'tab' + (isActive ? ' active' : ''));
+      btn.style.borderColor = color;
+      if (isActive) { btn.style.background = color; }
+      else { btn.style.color = color; }
+      btn.onclick = async () => {
+        // Only prompt when switching AWAY from the currently-active account.
+        if (name !== activeName) {
+          const stored = profiles[name] && profiles[name].passwordHash;
+          if (stored) {
+            const hint = profiles[name] && profiles[name].hint;
+            const msg = hint
+              ? `Enter password for "${name}".\n\n${tr('hintLabel')}: ${hint}`
+              : `Enter password for "${name}".`;
+            const pw = prompt(msg);
+            if (pw == null) return;
+            const hash = await sha256Hex(pw);
+            if (hash !== stored) { alert(tr('wrongPassword')); return; }
+          }
+        }
+        tab = name;
+        setActiveName(name);
+        activeName = name;
+        letterFilter = 'all';
+        renderTabs();
+        renderAlphabet();
+        renderSongs();
+      };
+      els.accountsBar.appendChild(btn);
+    });
+
+    // Bottom row (above the song list): R&P Music category first, then All songs
+    const rpBtn = document.createElement('button');
+    rpBtn.className = 'tab rpmusic' + (tab === 'rpmusic' ? ' active' : '');
+    if (tab === 'rpmusic') rpBtn.style.background = 'var(--accent)';
+    const rpImg = document.createElement('img');
+    rpImg.src = '/landing/icon.png';
+    rpImg.alt = '';
+    rpImg.style.cssText = 'width:20px;height:20px;border-radius:4px;vertical-align:middle;margin-right:6px;';
+    rpBtn.appendChild(rpImg);
+    const rpBrand = document.createElement('span');
+    rpBrand.className = 'brand-logo';
+    rpBrand.innerHTML = '<span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music';
+    rpBtn.appendChild(rpBrand);
+    rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+    els.tabs.appendChild(rpBtn);
+
+    const allBtn = button('📚 ' + tr('tabAll'), 'tab all' + (tab === 'all' ? ' active' : ''));
+    if (tab === 'all') allBtn.style.background = 'var(--accent)';
+    allBtn.onclick = () => { tab = 'all'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+    els.tabs.appendChild(allBtn);
+  }
+
+  function button(text, cls) {
+    const b = document.createElement('button');
+    b.className = cls;
+    b.textContent = text;
+    return b;
+  }
+
+  // --- Render: A-Z filter strip ---
+  function renderAlphabet() {
+    els.alphabet.innerHTML = '';
+
+    // Which letters have songs *within the current tab*? Other letters gray out.
+    let pool = allSongs.slice();
+    if (tab === 'rpmusic') {
+      pool = pool.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
+    } else if (tab !== 'all' && profiles[tab]) {
+      const saved = new Set(profiles[tab].songs || []);
+      pool = pool.filter(s => saved.has((s.title || '').trim()));
+    }
+    const letters = new Set();
+    let hasNonAlpha = false;
+    pool.forEach(s => {
+      const ch = firstLetter(s);
+      if (ch >= 'A' && ch <= 'Z') letters.add(ch);
+      else if (ch) hasNonAlpha = true;
+    });
+
+    const makeBtn = (label, value, enabled) => {
+      const b = document.createElement('button');
+      b.className = 'alpha-btn' + (letterFilter === value ? ' active' : '');
+      b.textContent = label;
+      if (!enabled) { b.disabled = true; return b; }
+      b.onclick = () => { letterFilter = value; renderAlphabet(); renderSongs(); };
+      return b;
+    };
+
+    els.alphabet.appendChild(makeBtn('All', 'all', true));
+    for (let i = 0; i < 26; i++) {
+      const L = String.fromCharCode(65 + i);
+      els.alphabet.appendChild(makeBtn(L, L, letters.has(L)));
+    }
+    if (hasNonAlpha) els.alphabet.appendChild(makeBtn('#', '#', true));
+  }
+
+  // --- Render: songs ---
+  function renderSongs() {
+    els.songs.innerHTML = '';
+
+    let visible = allSongs.slice();
+    if (tab === 'rpmusic') {
+      visible = visible.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
+    } else if (tab !== 'all' && profiles[tab]) {
+      const savedTitles = new Set(profiles[tab].songs || []);
+      visible = visible.filter(s => savedTitles.has((s.title || '').trim()));
+    }
+
+    // A-Z letter filter
+    if (letterFilter !== 'all') {
+      visible = visible.filter(s => {
+        const ch = firstLetter(s);
+        return letterFilter === '#'
+          ? !(ch >= 'A' && ch <= 'Z')
+          : ch === letterFilter;
+      });
+    }
+
+    // Search filter (admin mode)
+    if (isAdmin && searchQuery) {
+      const q = searchQuery.toLowerCase();
+      visible = visible.filter(s => {
+        const t = (s.title || s._filename || '').toLowerCase();
+        const c = (s.composer || '').toLowerCase();
+        return t.includes(q) || c.includes(q);
+      });
+    }
+
+    if (visible.length === 0) {
+      els.songs.hidden = true;
+      els.empty.hidden = false;
+      els.emptyMsg.textContent = tab === 'all'
+        ? (isAdmin && searchQuery ? `No songs match "${searchQuery}".` : tr('emptyAll'))
+        : tab === 'rpmusic'
+          ? 'No R&P Music songs yet.'
+          : tr('emptyProfile', {name: tab});
+      return;
+    }
+    els.empty.hidden = true;
+    els.songs.hidden = false;
+
+    if (isAdmin && sortBy === 'title') {
+      visible.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    } else if (isAdmin && sortBy === 'recent') {
+      visible.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    } else {
+      visible.sort((a, b) => (a.difficulty || 99) - (b.difficulty || 99));
+    }
+
+    for (const song of visible) {
+      const title = (song.title || (song._filename || '').replace(/\.json$/, '')).trim();
+      const composer = (song.composer || '').trim();
+      const measures = Array.isArray(song.measures) ? song.measures.length : 0;
+
+      const card = document.createElement('div');
+      card.className = 'song';
+
+      const link = document.createElement('a');
+      link.className = 'link';
+      link.href = editPrefix + '?song=' + encodeURIComponent(title);
+      link.setAttribute('aria-label', tr('ariaOpen', {title}));
+      card.appendChild(link);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'title';
+      titleEl.textContent = title || tr('untitled');
+      if (isAdmin) {
+        const badge = document.createElement('span');
+        const isPub = song.published === true || song.published === 'true';
+        badge.className = 'status-badge ' + (isPub ? 'published' : 'unpublished');
+        badge.textContent = isPub ? 'Published' : 'Unpublished';
+        titleEl.appendChild(badge);
+      }
+      const metaEl = document.createElement('div');
+      metaEl.className = 'meta';
+      const bits = [];
+      if (composer) bits.push(composer);
+      if (measures) bits.push(measures + ' ' + (measures === 1 ? tr('measureSingular') : tr('measurePlural')));
+      metaEl.textContent = bits.join(' · ');
+      info.appendChild(titleEl);
+      info.appendChild(metaEl);
+      card.appendChild(info);
+
+      if (isAdmin) {
+        // Admin card: explicit Open / Publish / Delete instead of the heart.
+        const actions = document.createElement('div');
+        actions.className = 'admin-actions';
+
+        const openBtn = document.createElement('button');
+        openBtn.className = 'action-btn action-open';
+        openBtn.textContent = 'Open';
+        openBtn.onclick = (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (IS_EMBED) {
+            window.parent.postMessage({ type: 'rpm-open-song', title }, window.location.origin);
+            return;
+          }
+          window.location.href = editPrefix + '?song=' + encodeURIComponent(title);
+        };
+        actions.appendChild(openBtn);
+
+        const isPub = song.published === true || song.published === 'true';
+        const pubBtn = document.createElement('button');
+        pubBtn.className = 'action-btn action-publish' + (isPub ? ' published' : '');
+        pubBtn.textContent = isPub ? 'Unpublish' : 'Publish';
+        pubBtn.onclick = async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          pubBtn.disabled = true;
+          try {
+            const resp = await fetch(isPub ? '/api/unpublish' : '/api/publish', {
+              method: 'POST', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title })
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+            song.published = !isPub;
+            renderSongs();
+          } catch (err) {
+            alert('Publish failed: ' + (err.message || err));
+            pubBtn.disabled = false;
+          }
+        };
+        actions.appendChild(pubBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'action-btn action-delete';
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (!confirm(`Delete "${title}"?\n(moves to trash — can be restored)`)) return;
+          delBtn.disabled = true;
+          try {
+            const filename = song._filename || (title.replace(/[\/\\:*?"<>|]/g, '_') + '.json');
+            const resp = await fetch('/api/songs/' + encodeURIComponent(filename), {
+              method: 'DELETE', credentials: 'include'
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+            allSongs = allSongs.filter(s => s !== song);
+            renderAlphabet();
+            renderSongs();
+          } catch (err) {
+            alert('Delete failed: ' + (err.message || err));
+            delBtn.disabled = false;
+          }
+        };
+        actions.appendChild(delBtn);
+
+        card.appendChild(actions);
+      } else {
+        // Baby card: keep the heart for profile favoriting.
+        const heart = document.createElement('button');
+        heart.className = 'heart';
+        heart.setAttribute('aria-label', tr('ariaSave'));
+        const savedForActive = activeName && profiles[activeName]
+          ? (profiles[activeName].songs || []).includes(title)
+          : false;
+        heart.textContent = savedForActive ? '❤️' : '🤍';
+        heart.onclick = (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (!activeName || !profiles[activeName]) {
+            openAddModal();
+            return;
+          }
+          const list = profiles[activeName].songs || [];
+          const has = list.includes(title);
+          profiles[activeName].songs = has ? list.filter(titl => titl !== title) : [...list, title];
+          writeProfiles(profiles);
+          renderTabs();
+          renderAlphabet();
+          renderSongs();
+        };
+        card.appendChild(heart);
+      }
+
+      els.songs.appendChild(card);
+    }
+  }
+
+  // --- Add-profile modal ---
+  let pickedColor = COLORS[0];
+  function renderSwatches() {
+    els.swatches.innerHTML = '';
+    COLORS.forEach(c => {
+      const s = document.createElement('div');
+      s.className = 'swatch' + (c === pickedColor ? ' selected' : '');
+      s.style.background = c;
+      s.onclick = () => { pickedColor = c; renderSwatches(); };
+      els.swatches.appendChild(s);
+    });
+  }
+  function showAddError(msg) {
+    els.addError.textContent = msg;
+    els.addError.style.display = msg ? 'block' : 'none';
+  }
+  function openAddModal() {
+    els.nameInput.value = '';
+    els.passwordInput.value = '';
+    els.hintInput.value = '';
+    showAddError('');
+    pickedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    renderSwatches();
+    els.addBackdrop.hidden = false;
+    // Focus without scrolling the input into view — on iOS Safari a plain
+    // .focus() on a tall modal scrolls the "Sign up" heading + Name label
+    // off-screen so the user only sees the name input with its placeholder.
+    setTimeout(() => {
+      els.nameInput.focus({ preventScroll: true });
+      els.addBackdrop.scrollTop = 0;
+    }, 50);
+  }
+  function closeAddModal() { els.addBackdrop.hidden = true; }
+  els.addCancel.onclick = closeAddModal;
+  els.addBackdrop.onclick = (e) => { if (e.target === els.addBackdrop) closeAddModal(); };
+  els.addSave.onclick = async () => {
+    const name = els.nameInput.value.trim();
+    const password = els.passwordInput.value;
+    if (!name) { showAddError(tr('errName')); els.nameInput.focus(); return; }
+    if (profiles[name]) { showAddError(tr('errDuplicate')); return; }
+    if (!password || password.length < 3) { showAddError(tr('errPassword')); els.passwordInput.focus(); return; }
+    const passwordHash = await sha256Hex(password);
+    const hint = els.hintInput.value.trim();
+    profiles[name] = { songs: [], color: pickedColor, passwordHash, hint };
+    writeProfiles(profiles);
+    setActiveName(name);
+    activeName = name;
+    tab = name;
+    letterFilter = 'all';
+    closeAddModal();
+    renderTabs();
+    renderAlphabet();
+    renderSongs();
+  };
+  function modalKey(e) {
+    if (e.key === 'Enter') els.addSave.click();
+    if (e.key === 'Escape') closeAddModal();
+  }
+  els.nameInput.addEventListener('keydown', modalKey);
+  els.passwordInput.addEventListener('keydown', modalKey);
+
+  // --- Search & sort wiring (admin mode only, but harmless to wire always) ---
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderSongs();
+    });
+  }
+  const sortBar = document.getElementById('sortBar');
+  if (sortBar) {
+    sortBar.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sortBy = btn.getAttribute('data-sort');
+        sortBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+        renderSongs();
+      });
+    });
+  }
+
+  // --- Boot ---
+  (async function () {
+    try {
+      // Admin uses /api/songs (all + published flag). Public uses /api/published.
+      const endpoint = isAdmin ? '/api/songs' : '/api/published';
+      const res = await fetch(endpoint, { credentials: 'include' });
+      const songs = await res.json();
+      allSongs = Array.isArray(songs) ? songs : [];
+    } catch (e) {
+      allSongs = [];
+    }
+    els.loading.hidden = true;
+    renderTabs();
+    renderAlphabet();
+    renderSongs();
+  })();
+})();
+</script>
+
+</body>
+</html>

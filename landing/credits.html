@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credits — R&P Music</title>
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
+    --g: #3b82f6; --a: #a855f7; --b: #ec4899;
+    --bg: #fffdf9; --text: #1a1a1a; --text2: #666; --border: #e5e5e5; --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .rainbow { display: flex; height: 6px; }
+  .rainbow span { flex: 1; }
+  .rainbow span:nth-child(1) { background: var(--c); }
+  .rainbow span:nth-child(2) { background: var(--d); }
+  .rainbow span:nth-child(3) { background: var(--e); }
+  .rainbow span:nth-child(4) { background: var(--f); }
+  .rainbow span:nth-child(5) { background: var(--g); }
+  .rainbow span:nth-child(6) { background: var(--a); }
+  .rainbow span:nth-child(7) { background: var(--b); }
+  .container { max-width: 680px; margin: 0 auto; padding: 32px 24px 80px; }
+  .back { color: var(--text2); font-size: 14px; }
+  .back:hover { color: var(--text); }
+  h1 { font-size: clamp(30px, 4.5vw, 40px); font-weight: 800; margin: 28px 0 20px; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; font-weight: 700; margin: 28px 0 6px; }
+  p { margin-bottom: 10px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="rainbow"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div class="container">
+  <a href="/" class="back" data-i18n="backHome">← Back to home</a>
+  <h1 data-i18n="pageTitle">Credits</h1>
+
+  <h2 data-i18n="h_piano">Piano sounds</h2>
+  <p data-i18n="p_piano">Piano samples from Salamander Grand Piano V3 by Alexander Holm.</p>
+  <p><span data-i18n="p_license_pre">Licensed under</span> <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener" data-i18n="licenseName">Creative Commons Attribution 3.0</a>.</p>
+  <p><span data-i18n="p_source_pre">Original source:</span> <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noopener">archive.org/details/SalamanderGrandPianoV3</a></p>
+
+  <h2 data-i18n="h_thanks">Thank you</h2>
+  <p data-i18n="p_thanks">To everyone who shares their knowledge and tools freely. It makes projects like this possible.</p>
+</div>
+
+<script>
+const T = {
+  en: {
+    pageTitle: "Credits", backHome: "← Back to home",
+    h_piano: "Piano sounds",
+    p_piano: "Piano samples from Salamander Grand Piano V3 by Alexander Holm.",
+    p_license_pre: "Licensed under",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "Original source:",
+    h_thanks: "Thank you",
+    p_thanks: "To everyone who shares their knowledge and tools freely. It makes projects like this possible."
+  },
+  zh: {
+    pageTitle: "鸣谢", backHome: "← 返回首页",
+    h_piano: "钢琴音色",
+    p_piano: "钢琴采样来自 Alexander Holm 的 Salamander Grand Piano V3。",
+    p_license_pre: "依据",
+    licenseName: "知识共享署名 3.0 许可",
+    p_source_pre: "原始来源：",
+    h_thanks: "感谢",
+    p_thanks: "感谢所有免费分享知识和工具的人，是你们让这样的项目成为可能。"
+  },
+  hi: {
+    pageTitle: "आभार", backHome: "← होम पेज पर वापस",
+    h_piano: "पियानो की आवाज़",
+    p_piano: "Alexander Holm के Salamander Grand Piano V3 से पियानो के नमूने।",
+    p_license_pre: "लाइसेंस:",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "मूल स्रोत:",
+    h_thanks: "धन्यवाद",
+    p_thanks: "उन सभी का जो अपनी जानकारी और औज़ार मुफ्त में साझा करते हैं। इसी से ऐसी परियोजनाएँ संभव होती हैं।"
+  },
+  es: {
+    pageTitle: "Créditos", backHome: "← Volver al inicio",
+    h_piano: "Sonidos de piano",
+    p_piano: "Muestras de piano del Salamander Grand Piano V3 de Alexander Holm.",
+    p_license_pre: "Con licencia",
+    licenseName: "Creative Commons Atribución 3.0",
+    p_source_pre: "Fuente original:",
+    h_thanks: "Gracias",
+    p_thanks: "A todos los que comparten su conocimiento y herramientas libremente. Eso hace posible proyectos como este."
+  },
+  fr: {
+    pageTitle: "Crédits", backHome: "← Retour à l'accueil",
+    h_piano: "Sons de piano",
+    p_piano: "Échantillons de piano du Salamander Grand Piano V3 d'Alexander Holm.",
+    p_license_pre: "Sous licence",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "Source originale :",
+    h_thanks: "Merci",
+    p_thanks: "À tous ceux qui partagent leur savoir et leurs outils librement. C'est ce qui rend possibles des projets comme celui-ci."
+  },
+  ar: {
+    pageTitle: "الشكر والتقدير", backHome: "← العودة إلى الصفحة الرئيسية",
+    h_piano: "أصوات البيانو",
+    p_piano: "عيّنات بيانو من Salamander Grand Piano V3 لـ Alexander Holm.",
+    p_license_pre: "مرخّص بموجب",
+    licenseName: "المشاع الإبداعي - النسب 3.0",
+    p_source_pre: "المصدر الأصلي:",
+    h_thanks: "شكراً",
+    p_thanks: "لكل من يشارك معرفته وأدواته بحرية. هذا ما يجعل مثل هذه المشاريع ممكنة."
+  },
+  pt: {
+    pageTitle: "Créditos", backHome: "← Voltar para o início",
+    h_piano: "Sons de piano",
+    p_piano: "Amostras de piano do Salamander Grand Piano V3, de Alexander Holm.",
+    p_license_pre: "Licenciado sob",
+    licenseName: "Creative Commons Atribuição 3.0",
+    p_source_pre: "Fonte original:",
+    h_thanks: "Obrigado",
+    p_thanks: "A todos que compartilham seu conhecimento e ferramentas livremente. É isso que torna projetos como este possíveis."
+  },
+  ru: {
+    pageTitle: "Благодарности", backHome: "← Назад на главную",
+    h_piano: "Звуки пианино",
+    p_piano: "Семплы пианино из Salamander Grand Piano V3 от Alexander Holm.",
+    p_license_pre: "Лицензия:",
+    licenseName: "Creative Commons «С указанием авторства» 3.0",
+    p_source_pre: "Первоисточник:",
+    h_thanks: "Спасибо",
+    p_thanks: "Всем, кто свободно делится знаниями и инструментами. Это делает такие проекты возможными."
+  },
+  ja: {
+    pageTitle: "クレジット", backHome: "← ホームに戻る",
+    h_piano: "ピアノ音",
+    p_piano: "ピアノサンプルは Alexander Holm 氏の Salamander Grand Piano V3 より。",
+    p_license_pre: "ライセンス：",
+    licenseName: "クリエイティブ・コモンズ 表示 3.0",
+    p_source_pre: "原典：",
+    h_thanks: "ありがとうございます",
+    p_thanks: "知識とツールを自由に共有してくださるすべての方へ。おかげでこのようなプロジェクトが実現できます。"
+  },
+  bn: {
+    pageTitle: "কৃতজ্ঞতা", backHome: "← হোমে ফিরুন",
+    h_piano: "পিয়ানোর শব্দ",
+    p_piano: "Alexander Holm-এর Salamander Grand Piano V3 থেকে পিয়ানো স্যাম্পল।",
+    p_license_pre: "লাইসেন্স:",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "মূল উৎস:",
+    h_thanks: "ধন্যবাদ",
+    p_thanks: "যাঁরা তাঁদের জ্ঞান ও সরঞ্জাম বিনামূল্যে ভাগ করে নেন, তাঁদের সবাইকে। এভাবেই এমন প্রকল্প সম্ভব হয়।"
+  },
+  ur: {
+    pageTitle: "اعتراف", backHome: "← ہوم پیج پر واپس",
+    h_piano: "پیانو کی آوازیں",
+    p_piano: "Alexander Holm کے Salamander Grand Piano V3 سے پیانو نمونے۔",
+    p_license_pre: "لائسنس:",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "اصل ماخذ:",
+    h_thanks: "شکریہ",
+    p_thanks: "ان سب کا جو اپنا علم اور اوزار مفت میں بانٹتے ہیں۔ اسی سے ایسے منصوبے ممکن ہوتے ہیں۔"
+  },
+  ko: {
+    pageTitle: "크레딧", backHome: "← 홈으로 돌아가기",
+    h_piano: "피아노 음원",
+    p_piano: "Alexander Holm의 Salamander Grand Piano V3에서 가져온 피아노 샘플.",
+    p_license_pre: "라이선스:",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "원본 출처:",
+    h_thanks: "감사합니다",
+    p_thanks: "자신의 지식과 도구를 자유롭게 나누는 모든 분들께. 이런 프로젝트가 가능한 이유입니다."
+  },
+  tl: {
+    pageTitle: "Credits", backHome: "← Bumalik sa home",
+    h_piano: "Mga tunog ng piano",
+    p_piano: "Mga piano sample mula sa Salamander Grand Piano V3 ni Alexander Holm.",
+    p_license_pre: "Naka-lisensiya sa ilalim ng",
+    licenseName: "Creative Commons Attribution 3.0",
+    p_source_pre: "Orihinal na pinagmulan:",
+    h_thanks: "Salamat",
+    p_thanks: "Sa lahat ng nagbabahagi ng kanilang kaalaman at kasangkapan nang malaya. Dahil dyan, posible ang mga proyektong tulad nito."
+  }
+};
+const RTL = new Set(["ar", "ur"]);
+let lang = "en";
+try { lang = localStorage.getItem("rap-lang") || ""; } catch(e) {}
+if (!T[lang]) lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+if (!T[lang]) lang = "en";
+const dict = T[lang];
+document.querySelectorAll("[data-i18n]").forEach(el => {
+  const k = el.getAttribute("data-i18n");
+  if (dict[k] != null) el.textContent = dict[k];
+});
+document.documentElement.lang = lang;
+document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
+document.title = dict.pageTitle + " — R&P Music";
+</script>
+
+</body>
+</html>
