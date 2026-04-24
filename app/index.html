@@ -12,6 +12,13 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#9B6BFF">
+  <!-- Preconnect to CDNs so the browser starts TCP + TLS handshakes while
+       parsing HTML, saving ~100–300 ms on the first request to each host. -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -72,12 +79,17 @@
     <div class="rotate-text rotate-text-mouse">Please widen your window — R&amp;P Music needs more room to show the keys and staff</div>
   </div>
   <div id="root"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous"></script>
+  <!-- All external libs use `defer` so HTML can render immediately. Scripts
+       download in parallel and execute in document order after HTML parses.
+       Babel-standalone scans for <script type="text/babel"> tags on load, so
+       it still compiles + runs the inline app code correctly — just after
+       first paint instead of blocking it. Huge LCP win on slow connections. -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous" defer></script>
   <script>
     // Server-side storage API
     window.noteforgeAPI = {
@@ -185,7 +197,9 @@ const APP_STRINGS = APP_T[getAppLang()];
 // ─── Constants ───────────────────────────────────────────────────────
 // Keep in sync with CACHE_VERSION in /sw.js. Shown in the top bar so we can
 // verify at a glance which build a PWA / browser is actually running.
-const APP_VERSION = 'v22';
+// Keep in sync with CACHE_VERSION in /sw.js. Shown in the top bar so we can
+// verify at a glance which build a PWA / browser is actually running.
+const APP_VERSION = 'v33';
 
 const STAFF_TOP = 60;
 const LINE_SPACING = 32;
@@ -360,6 +374,53 @@ function effectiveKeySig(measures, idx, songKeySig) {
     if (ks) return ks;
   }
   return songKeySig;
+}
+
+// HARD RULE: accidentals apply to all same-line/space notes for the rest of
+// the measure, cleared at the barline, octave-specific. When a pitch is
+// stored as accidental='none', this walks back through the measure (through
+// both primary and chord-member notes) to find the most recent printed
+// accidental on the same letter+octave. If none found, returns 'none' so
+// callers can apply the key signature.
+function effectiveAccidentalInMeasure(measures, mi, upToNoteIdx, chordIdx, letter, octave) {
+  if (!measures || !measures[mi]) return 'none';
+  const notes = measures[mi].notes || [];
+  // Walk back. Include prior notes AND (if we're a chord member at chordIdx
+  // of note upToNoteIdx) earlier chord members at the SAME note position
+  // (those are simultaneous but rendered left-to-right).
+  const end = Math.min(upToNoteIdx, notes.length - 1);
+  for (let ni = end; ni >= 0; ni--) {
+    const n = notes[ni];
+    if (!n || n.isRest) continue;
+    if (ni === upToNoteIdx) {
+      // At our own note position: check earlier chord siblings only.
+      if (chordIdx !== undefined && chordIdx > 0 && Array.isArray(n.chord)) {
+        for (let ci = chordIdx - 1; ci >= 0; ci--) {
+          const c = n.chord[ci];
+          if (c && c.name === letter && c.octave === octave
+              && c.accidental && c.accidental !== 'none') {
+            return c.accidental;
+          }
+        }
+      }
+      continue;
+    }
+    // Primary of a prior note
+    if (n.name === letter && n.octave === octave
+        && n.accidental && n.accidental !== 'none') {
+      return n.accidental;
+    }
+    // Chord members of a prior note
+    if (Array.isArray(n.chord)) {
+      for (const c of n.chord) {
+        if (c && c.name === letter && c.octave === octave
+            && c.accidental && c.accidental !== 'none') {
+          return c.accidental;
+        }
+      }
+    }
+  }
+  return 'none';
 }
 
 function noteToFreq(name, octave, accidental, keySigId) {
@@ -676,6 +737,21 @@ function NoteHead({ x, y, duration, accidental, isRest, isPlaying, isSelected, n
           const cColor = NOTE_COLORS[cn.name] || "var(--note-color)";
           return (
             <g key={`chord-${ci}`} style={{ pointerEvents: "none" }}>
+              {isPlaying && (
+                // Per-pitch rainbow tracker. Each chord member gets its own
+                // arc so the student sees every sounding pitch (primary + all
+                // chord members) light up simultaneously — teaches that
+                // music is polyphonic and maps each sounding key on the
+                // piano to the specific note on the staff producing it.
+                <g>
+                  <path d={`M ${x - 44} ${cy + 6} A 44 44 0 0 1 ${x + 44} ${cy + 6}`} fill="none" stroke="#ff3b30" strokeWidth={3} strokeLinecap="butt" />
+                  <path d={`M ${x - 41} ${cy + 6} A 41 41 0 0 1 ${x + 41} ${cy + 6}`} fill="none" stroke="#ff9500" strokeWidth={3} strokeLinecap="butt" />
+                  <path d={`M ${x - 38} ${cy + 6} A 38 38 0 0 1 ${x + 38} ${cy + 6}`} fill="none" stroke="#ffcc00" strokeWidth={3} strokeLinecap="butt" />
+                  <path d={`M ${x - 35} ${cy + 6} A 35 35 0 0 1 ${x + 35} ${cy + 6}`} fill="none" stroke="#34c759" strokeWidth={3} strokeLinecap="butt" />
+                  <path d={`M ${x - 32} ${cy + 6} A 32 32 0 0 1 ${x + 32} ${cy + 6}`} fill="none" stroke="#3498db" strokeWidth={3} strokeLinecap="butt" />
+                  <path d={`M ${x - 29} ${cy + 6} A 29 29 0 0 1 ${x + 29} ${cy + 6}`} fill="none" stroke="#9b59b6" strokeWidth={3} strokeLinecap="butt" />
+                </g>
+              )}
               <LedgerLines x={x} y={cy} noteRx={NOTE_RX} staffTop={staffTop} />
               {cn.accidental === "sharp" && (
                 <text x={x - NOTE_RX - 30} y={cy + 22} textAnchor="middle" fontSize={60} fill={cColor} fontWeight="bold">♯</text>
@@ -1453,7 +1529,12 @@ function MusicNotationEditor() {
           // Expected piano key honors the effective key sig AND folds
           // enharmonic edge cases (E#→F, B#→C-next, Cb→B-prev, Fb→E).
           const eff = effectiveKeySig(measures, pos.measure, keySig);
-          const expectedKey = pitchToPianoKey(expectedNote.name, expectedNote.octave, expectedNote.accidental, eff);
+          // Resolve the expected note's accidental using the measure-local
+          // rule (inherits from earlier printed accidentals in the measure).
+          const expectedAcc = (expectedNote.accidental && expectedNote.accidental !== 'none')
+            ? expectedNote.accidental
+            : effectiveAccidentalInMeasure(measures, pos.measure, pos.note, undefined, expectedNote.name, expectedNote.octave);
+          const expectedKey = pitchToPianoKey(expectedNote.name, expectedNote.octave, expectedAcc, eff);
           if (noteName === expectedKey) {
             // Correct! A tied-to note is held over from the previous press,
             // so pressing it again is musically correct but produces no
@@ -1951,6 +2032,24 @@ function MusicNotationEditor() {
   // assignment, time signature, tempo, repeat barlines. Key-sig is flattened to C
   // with explicit per-note accidentals (per the project's spelling convention).
   const parseMusicXMLDoc = useCallback((doc) => {
+    // Read the accidental value for a note. We store ONLY explicit printed
+    // accidentals (the <accidental> element in MusicXML — what the score
+    // visually draws). Subsequent same-pitch notes within a measure omit
+    // <accidental> because the rule is "an accidental lasts to the bar
+    // line on the same line or space". The pitch comes from a measure-local
+    // accidental resolver at playback/render time (effectiveAccidental).
+    const readPrintedAccidental = (noteEl) => {
+      const accEl = noteEl.querySelector(':scope > accidental');
+      if (!accEl) return 'none';
+      const t = (accEl.textContent || '').trim();
+      if (t === 'sharp') return 'sharp';
+      if (t === 'flat') return 'flat';
+      if (t === 'natural') return 'natural';
+      if (t === 'double-sharp' || t === 'sharp-sharp') return 'double-sharp';
+      if (t === 'flat-flat') return 'double-flat';
+      return 'none';
+    };
+
     const title = doc.querySelector('work > work-title, movement-title')?.textContent?.trim() || 'Imported Song';
     const composer = doc.querySelector('creator[type="composer"]')?.textContent?.trim() || '';
     const allPartsRaw = Array.from(doc.querySelectorAll('part'));
@@ -2141,28 +2240,31 @@ function MusicNotationEditor() {
           staff = (meta.signs[0] === 'F') ? 'bass' : 'treble';
         }
 
-        // Chord member: extract just the pitch and attach to the most recent
-        // primary note on the same staff. Don't create a new note entry.
+        // Chord member: extract the pitch + tie info, and attach to the most
+        // recent primary note on this staff. Don't create a new note entry.
+        // Per-chord-member ties are essential — e.g. an oom-pah bass where
+        // the G3 chord tone sustains across beats 2-4 via ties, independent
+        // of the C3 pedal below.
         if (isChordMember) {
           let cName = 'C', cOctave = 4, cAcc = 'none';
           const cPitch = el.querySelector(':scope > pitch');
           if (cPitch) {
             cName = cPitch.querySelector('step')?.textContent.trim() || 'C';
             cOctave = parseInt(cPitch.querySelector('octave')?.textContent) || 4;
-            const cAccEl = el.querySelector(':scope > accidental');
-            if (cAccEl) {
-              const tt = (cAccEl.textContent || '').trim();
-              if (tt === 'sharp') cAcc = 'sharp';
-              else if (tt === 'flat') cAcc = 'flat';
-              else if (tt === 'natural') cAcc = 'natural';
-              else if (tt === 'double-sharp' || tt === 'sharp-sharp') cAcc = 'double-sharp';
-              else if (tt === 'flat-flat') cAcc = 'double-flat';
-            }
+            cAcc = readPrintedAccidental(el);
+          }
+          // Per-chord-member tie (<tie type="start">) — at least one
+          // <tie>/<tied> with type="start" means this pitch continues into
+          // the next same-pitch chord member on the same host.
+          const cTieEls = el.querySelectorAll(':scope > tie, :scope > notations > tied');
+          let cTie = false;
+          for (const t of cTieEls) {
+            if (t.getAttribute('type') === 'start') { cTie = true; break; }
           }
           for (let i = nfNotes.length - 1; i >= 0; i--) {
             const host = nfNotes[i];
             if (host.staff !== staff || host.isRest) continue;
-            const chord = [...(host.chord || []), { name: cName, octave: cOctave, accidental: cAcc }];
+            const chord = [...(host.chord || []), { name: cName, octave: cOctave, accidental: cAcc, tie: cTie }];
             nfNotes[i] = { ...host, chord };
             break;
           }
@@ -2194,19 +2296,10 @@ function MusicNotationEditor() {
           if (pitch) {
             name = pitch.querySelector('step')?.textContent.trim() || 'C';
             octave = parseInt(pitch.querySelector('octave')?.textContent) || 4;
-            // Use the <accidental> element (what the score visually shows),
-            // not <alter> (which always reflects the sounding pitch even when
-            // the accidental is implied by the key sig). Matches the memory
-            // rule: don't write accidentals implied by the key signature.
-            const accEl = el.querySelector(':scope > accidental');
-            if (accEl) {
-              const t = (accEl.textContent || '').trim();
-              if (t === 'sharp') accidental = 'sharp';
-              else if (t === 'flat') accidental = 'flat';
-              else if (t === 'natural') accidental = 'natural';
-              else if (t === 'double-sharp' || t === 'sharp-sharp') accidental = 'double-sharp';
-              else if (t === 'flat-flat') accidental = 'double-flat';
-            }
+            // Store only the printed accidental (drawn in the score).
+            // Same-pitch later notes in the measure inherit via the
+            // in-measure accidental resolver at playback/render time.
+            accidental = readPrintedAccidental(el);
           }
         }
 
@@ -2260,11 +2353,19 @@ function MusicNotationEditor() {
           if (arr.length > 1) verses = arr;
         }
 
+        // Stem direction: preserve exactly as printed in the MXL. The
+        // renderer honors `stem: "up"|"down"` and overrides its auto-pick
+        // based on staff-middle threshold. Missing → let renderer auto-pick.
+        const stemEl = el.querySelector(':scope > stem');
+        const stemTxt = stemEl ? (stemEl.textContent || '').trim() : '';
+        const stem = (stemTxt === 'up' || stemTxt === 'down') ? stemTxt : undefined;
+
         nfNotes.push({
           id: idCounter++, x: 80,
           name, octave, duration, dotted, triplet, accidental, isRest, staff,
           lyric,
           ...(verses ? { verses } : {}),
+          ...(stem ? { stem } : {}),
           tie
         });
         }
@@ -2560,11 +2661,16 @@ function MusicNotationEditor() {
     const A1_MIDI = 33, C8_MIDI = 108;
     const PC_TO_MIDI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
     let minMidi = Infinity, maxMidi = -Infinity;
-    (measures || []).forEach((m, mi) => (m.notes || []).forEach(n => {
+    (measures || []).forEach((m, mi) => (m.notes || []).forEach((n, ni) => {
       if (n.isRest) return;
       const effKS = effectiveKeySig(measures, mi, keySig);
-      const pitches = [{ name: n.name, octave: n.octave, accidental: n.accidental }];
-      if (Array.isArray(n.chord)) pitches.push(...n.chord);
+      const resolve = (p, ci) => (p.accidental && p.accidental !== 'none')
+        ? p.accidental
+        : effectiveAccidentalInMeasure(measures, mi, ni, ci, p.name, p.octave);
+      const pitches = [{ name: n.name, octave: n.octave, accidental: resolve(n, undefined) }];
+      if (Array.isArray(n.chord)) {
+        n.chord.forEach((c, ci) => pitches.push({ name: c.name, octave: c.octave, accidental: resolve(c, ci) }));
+      }
       for (const p of pitches) {
         const pk = pitchToPianoKey(p.name, p.octave, p.accidental, effKS);
         const parsed = pk.match(/^([A-G])(#?)(-?\d+)$/);
@@ -3423,28 +3529,85 @@ function MusicNotationEditor() {
     const maxRepeats = nums ? Math.max(...nums.map(Number)) : 1;
     const hasVolta2 = measures.some(m => m.volta2Start);
 
-    // Precompute tie info so a tied note sustains through the next same-staff note
-    // and the next note skips its attack (but still moves the rainbow / highlight).
+    // ──────────────────────────────────────────────────────────────────
+    // Per-pitch tie info. Each pitch on a note (the primary pitch + every
+    // chord member) is tracked independently by (staff, letter, octave).
+    //
+    //   attackPrimary / attackChord[ci]: should this pitch's attack fire
+    //     at this note's time? (false for tie destinations — the sound is
+    //     already sustaining from the earlier note that started the chain.)
+    //   sustainAddPrimary / sustainAddChord[ci]: extra beats to add to
+    //     the attack's release time. Only non-zero on the CHAIN ROOT (the
+    //     first attacker in a tie chain). Each tied-to note adds its own
+    //     beats to the root so the held pitch lasts the full chain.
+    //
+    // Tracks chains per-pitch so a 4-beat C3 pedal (primary ties) and a
+    // 3-beat G3 chord tone (chord member ties) held above it are handled
+    // independently — like m19/20 of a classic oom-pah bass.
+    // ──────────────────────────────────────────────────────────────────
     const tieInfo = new Map();
     {
-      const lastTiedKey = { treble: null, bass: null };
+      // Key = staff-letter-octave-accidental. Value = {rootMi, rootNi, rootCi}
+      // where rootCi is -1 for primary, 0+ for chord member index.
+      const lastTied = {};   // pitch → last attacker info, reset when consumed
+      const chainRoot = {};  // pitch → root of current chain (sustainAdd target)
+      const pitchKey = (sk, p) => `${sk}-${p.name}-${p.octave}-${p.accidental || 'none'}`;
+
+      const addBeatsToRoot = (rootRef, nBeats, isChord) => {
+        if (!rootRef) return;
+        const rootInfo = tieInfo.get(`${rootRef.mi}-${rootRef.ni}`);
+        if (!rootInfo) return;
+        if (rootRef.ci === -1) rootInfo.sustainAddPrimary += nBeats;
+        else if (rootInfo.sustainAddChord[rootRef.ci] !== undefined) rootInfo.sustainAddChord[rootRef.ci] += nBeats;
+      };
+
       for (let mi = 0; mi < measures.length; mi++) {
         const mnotes = measures[mi].notes;
         for (let ni = 0; ni < mnotes.length; ni++) {
           const n = mnotes[ni];
           const sk = n.staff === "bass" ? "bass" : "treble";
           const key = `${mi}-${ni}`;
-          const info = { skipAttack: false, sustainAdd: 0 };
-          if (lastTiedKey[sk] && !n.isRest) {
-            info.skipAttack = true;
-            const baseDur = NOTE_DURATIONS.find(d => d.id === n.duration)?.beats || 1;
-            const nBeats = n.dotted ? baseDur * 1.5 : n.triplet ? 1 / 3 : baseDur;
-            const prev = tieInfo.get(lastTiedKey[sk]);
-            if (prev) prev.sustainAdd += nBeats;
-            lastTiedKey[sk] = null;
+          const chordLen = Array.isArray(n.chord) ? n.chord.length : 0;
+          const rec = {
+            attackPrimary: true, attackChord: Array(chordLen).fill(true),
+            sustainAddPrimary: 0, sustainAddChord: Array(chordLen).fill(0),
+          };
+          tieInfo.set(key, rec);
+          if (n.isRest) continue;
+
+          const baseDur = NOTE_DURATIONS.find(d => d.id === n.duration)?.beats || 1;
+          const nBeats = n.dotted ? baseDur * 1.5 : n.triplet ? 1 / 3 : baseDur;
+
+          // ─── Primary pitch ───
+          const pKey = pitchKey(sk, n);
+          if (lastTied[pKey]) {
+            rec.attackPrimary = false;
+            addBeatsToRoot(chainRoot[pKey], nBeats, false);
+            lastTied[pKey] = null;
           }
-          if (n.tie && !n.isRest) lastTiedKey[sk] = key;
-          tieInfo.set(key, info);
+          if (n.tie) {
+            lastTied[pKey] = { mi, ni, ci: -1 };
+            if (rec.attackPrimary) chainRoot[pKey] = { mi, ni, ci: -1 };
+          } else if (!rec.attackPrimary) {
+            chainRoot[pKey] = null; // end of chain
+          }
+
+          // ─── Chord members ───
+          for (let ci = 0; ci < chordLen; ci++) {
+            const c = n.chord[ci];
+            const cKey = pitchKey(sk, c);
+            if (lastTied[cKey]) {
+              rec.attackChord[ci] = false;
+              addBeatsToRoot(chainRoot[cKey], nBeats, true);
+              lastTied[cKey] = null;
+            }
+            if (c.tie) {
+              lastTied[cKey] = { mi, ni, ci };
+              if (rec.attackChord[ci]) chainRoot[cKey] = { mi, ni, ci };
+            } else if (!rec.attackChord[ci]) {
+              chainRoot[cKey] = null;
+            }
+          }
         }
       }
     }
@@ -3502,8 +3665,16 @@ function MusicNotationEditor() {
       const shiftBeats = (mi === startMi && scheduled.length > 0) ? scheduled[0].offsetBeats : 0;
 
       scheduled.forEach(({ note, ni, offsetBeats, beats }) => {
-        const tInfo = tieInfo.get(`${mi}-${ni}`) || { skipAttack: false, sustainAdd: 0 };
-        const effectiveBeats = beats + tInfo.sustainAdd;
+        const tInfo = tieInfo.get(`${mi}-${ni}`) || {
+          attackPrimary: true, attackChord: [], sustainAddPrimary: 0, sustainAddChord: []
+        };
+        // Primary and chord members can have different sustains (one ties,
+        // others don't). We schedule them with the longest sustain at this
+        // note position; individual attacks are gated by attackPrimary /
+        // attackChord[ci].
+        const primaryEffectiveBeats = beats + tInfo.sustainAddPrimary;
+        const chordEffectiveBeats = (tInfo.sustainAddChord || []).map(s => beats + s);
+        const effectiveBeats = Math.max(primaryEffectiveBeats, ...chordEffectiveBeats, beats);
         const noteDur = effectiveBeats * beatDuration;
         const noteTime = measureStart + (offsetBeats - shiftBeats) * beatDuration;
         // Add this note to the scroll timeline (one waypoint per musical instant)
@@ -3516,30 +3687,63 @@ function MusicNotationEditor() {
           playPositionRef.current = { measure: mi, note: ni };
           setPlayingIdx({ measure: mi, note: ni });
           setPlayingNotes(prev => ({ ...prev, [mi + "-" + ni]: true }));
-          if (!note.isRest && !tInfo.skipAttack && synthRef.current) {
-            // Collect all pitches to play: primary + every chord member.
-            const pitches = [{ name: note.name, octave: note.octave, accidental: note.accidental }];
-            if (Array.isArray(note.chord)) pitches.push(...note.chord);
-            const effKS = effectiveKeySig(measures, mi, keySig);
-            const pianoKeyName = (p) => pitchToPianoKey(p.name, p.octave, p.accidental, effKS);
-            const freqs = pitches.map(p => noteToFreq(p.name, p.octave, p.accidental, effKS));
-            // Practice mode: no staff sound, only piano key highlights
-            if (playModeRef.current !== "practice") {
-              synthRef.current.triggerAttackRelease(freqs, noteDur * 0.9);
+          if (!note.isRest && synthRef.current) {
+            // Resolve each pitch's effective accidental per the HARD RULE:
+            // an accidental printed earlier in this measure on the same
+            // (letter, octave) carries to this note. Stored accidental is
+            // the PRINTED one only — the resolver inherits the rest.
+            const resolve = (p, ci) => {
+              if (p.accidental && p.accidental !== 'none') return p.accidental;
+              return effectiveAccidentalInMeasure(measures, mi, ni, ci, p.name, p.octave);
+            };
+            // Build the list of pitches to attack here. Each pitch (primary
+            // + each chord member) is gated by its own tie state from tInfo.
+            const pitches = [];
+            if (tInfo.attackPrimary) {
+              pitches.push({
+                pitch: { name: note.name, octave: note.octave, accidental: resolve(note, undefined) },
+                durBeats: beats + tInfo.sustainAddPrimary,
+              });
             }
-            // In Learn mode: also play piano sampler sound (chord-aware)
-            if (playModeRef.current === "learn" && pianoSynthRef.current && pianoLoadedRef.current) {
-              pianoSynthRef.current.triggerAttackRelease(pitches.map(pianoKeyName), noteDur * 0.9);
+            if (Array.isArray(note.chord)) {
+              for (let ci = 0; ci < note.chord.length; ci++) {
+                if (tInfo.attackChord[ci] === false) continue;
+                const c = note.chord[ci];
+                pitches.push({
+                  pitch: { name: c.name, octave: c.octave, accidental: resolve(c, ci) },
+                  durBeats: beats + (tInfo.sustainAddChord?.[ci] || 0),
+                });
+              }
             }
-            // Light up piano keys with each pitch's color
-            setPressedPianoKeys(prev => {
-              const next = { ...prev };
-              for (const p of pitches) next[pianoKeyName(p)] = noteColorMap[p.name] || "#fff";
-              return next;
-            });
-            // Per-note pulse: force a blink even on consecutive same-pitch
-            // notes (E-E-E in Jingle Bells m1) by remounting the piano key.
-            bumpPianoKeyPulse(pitches.map(pianoKeyName));
+            if (pitches.length > 0) {
+              const effKS = effectiveKeySig(measures, mi, keySig);
+              const pianoKeyName = (p) => pitchToPianoKey(p.name, p.octave, p.accidental, effKS);
+              // Attack each pitch with its own sustain — ties extend pitches
+              // independently. Tone.js accepts arrays of frequencies, but
+              // since durations now vary per pitch we call once per pitch.
+              for (const { pitch, durBeats } of pitches) {
+                const f = noteToFreq(pitch.name, pitch.octave, pitch.accidental, effKS);
+                const dur = durBeats * beatDuration * 0.9;
+                if (playModeRef.current !== "practice") {
+                  synthRef.current.triggerAttackRelease(f, dur);
+                }
+                if (playModeRef.current === "learn" && pianoSynthRef.current && pianoLoadedRef.current) {
+                  pianoSynthRef.current.triggerAttackRelease(pianoKeyName(pitch), dur);
+                }
+              }
+              // Light up piano keys with each attacking pitch's color
+              const keyNames = pitches.map(({ pitch }) => pianoKeyName(pitch));
+              setPressedPianoKeys(prev => {
+                const next = { ...prev };
+                for (let i = 0; i < pitches.length; i++) {
+                  next[keyNames[i]] = noteColorMap[pitches[i].pitch.name] || "#fff";
+                }
+                return next;
+              });
+              // Per-note pulse: remount the piano key so consecutive same-
+              // pitch notes (E-E-E in Jingle Bells m1) each show a blink.
+              bumpPianoKeyPulse(keyNames);
+            }
           }
           // Rests are silent — they must NOT touch pressedPianoKeys. On grand
           // staff, a rest on one staff fires at the same instant as an actual
@@ -3552,14 +3756,26 @@ function MusicNotationEditor() {
         timeouts.push(setTimeout(() => {
           setPlayingIdx(prev => (prev.measure === mi && prev.note === ni) ? { measure: -1, note: -1 } : prev);
           setPlayingNotes(prev => { const next = { ...prev }; delete next[mi + "-" + ni]; return next; });
-          // Remove every pitch's key (primary + chord members)
+          // Only clear the keys that THIS note's position attacked. Tied
+          // pitches (skipped attacks here) are still lit from the earlier
+          // attack that started the chain — let the chain's root clear them
+          // at the end of its own effective duration.
           const effKS = effectiveKeySig(measures, mi, keySig);
-          const pianoKeyName = (p) => pitchToPianoKey(p.name, p.octave, p.accidental, effKS);
-          const pitches = [{ name: note.name, octave: note.octave, accidental: note.accidental }];
-          if (Array.isArray(note.chord)) pitches.push(...note.chord);
+          const resolveClear = (p, ci) => {
+            if (p.accidental && p.accidental !== 'none') return p.accidental;
+            return effectiveAccidentalInMeasure(measures, mi, ni, ci, p.name, p.octave);
+          };
+          const pianoKeyName = (p, ci) => pitchToPianoKey(p.name, p.octave, resolveClear(p, ci), effKS);
+          const toClear = [];
+          if (tInfo.attackPrimary) toClear.push([note, undefined]);
+          if (Array.isArray(note.chord)) {
+            for (let ci = 0; ci < note.chord.length; ci++) {
+              if (tInfo.attackChord[ci] !== false) toClear.push([note.chord[ci], ci]);
+            }
+          }
           setPressedPianoKeys(prev => {
             const next = { ...prev };
-            for (const p of pitches) delete next[pianoKeyName(p)];
+            for (const [p, ci] of toClear) delete next[pianoKeyName(p, ci)];
             return next;
           });
         }, (noteTime + noteDur) * 1000));
@@ -4548,11 +4764,17 @@ function MusicNotationEditor() {
           <img src="/icon.svg" alt="Read&PlayMusic" style={{
             width: isMobile ? 28 : 40, height: isMobile ? 28 : 40, borderRadius: 8, display: "block", flexShrink: 0,
           }} />
-          <span style={{
-            fontSize: isMobile ? 10 : 12, color: "var(--text2)", fontFamily: "monospace",
-            padding: "1px 5px", borderRadius: 4, background: "var(--bg3)", border: "1px solid var(--border)",
-            flexShrink: 0, lineHeight: 1.4,
-          }} title="App version (matches service-worker cache version)">{APP_VERSION}</span>
+          {/* Version badge — hidden on the live domain (readandplaymusic.app)
+              so end users never see a build number. Visible on local dev
+              (192.168.*, localhost, etc.) so we can verify which build a
+              device has loaded. */}
+          {typeof window !== 'undefined' && !/(^|\.)readandplaymusic\.app$/i.test(window.location.hostname) && (
+            <span style={{
+              fontSize: isMobile ? 10 : 12, color: "var(--text2)", fontFamily: "monospace",
+              padding: "1px 5px", borderRadius: 4, background: "var(--bg3)", border: "1px solid var(--border)",
+              flexShrink: 0, lineHeight: 1.4,
+            }} title="App version (matches service-worker cache version)">{APP_VERSION}</span>
+          )}
           <button onClick={() => {
             // Stop any in-flight playback before leaving — otherwise the song
             // keeps playing behind the library overlay / on the next page.
@@ -5714,29 +5936,45 @@ function MusicNotationEditor() {
                                   onMouseDown={(e) => handleNoteDragStart(mi, ni, e)}
                                   onTouchStart={(e) => handleNoteDragStart(mi, ni, e)} />
                                 {tieTarget && (() => {
-                                  // Tapered tie drawn as two TRUE circular arcs (SVG A command)
-                                  // forming a lens. The sagitta → radius conversion gives a perfect
-                                  // arc rather than the flatter peak of a quadratic Bezier.
-                                  // pointer-events: none so the arc never absorbs clicks meant for
-                                  // the noteheads underneath it (edit-mode drag + select).
+                                  // Tapered tie as two TRUE circular arcs. Direction:
+                                  //   - In a chord, the primary tie goes UP if primary is the
+                                  //     TOP of the stack, DOWN if it's the BOTTOM (so the tie
+                                  //     doesn't collide with chord members on the other side).
+                                  //   - Single note: tie curves OPPOSITE to the stem.
+                                  const LETTER_ORD = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
+                                  const pIdx = LETTER_ORD[note.name] + (note.octave || 0) * 7;
+                                  let anyAbove = false, anyBelow = false;
+                                  if (Array.isArray(note.chord)) {
+                                    for (const cn of note.chord) {
+                                      const cIdx = LETTER_ORD[cn.name] + (cn.octave || 0) * 7;
+                                      if (cIdx > pIdx) anyAbove = true;
+                                      else if (cIdx < pIdx) anyBelow = true;
+                                    }
+                                  }
+                                  const stemDir = forcedStemMap[ni];
+                                  const tieAbove = anyAbove && !anyBelow ? false  // primary is bottom → tie below
+                                    : anyBelow && !anyAbove ? true                 // primary is top → tie above
+                                    : stemDir === "down";                          // single or mixed → stem-opposite
                                   const x1 = noteX + NOTE_RX;
                                   const x2 = tieTarget.noteX - NOTE_RX * 0.2;
-                                  const baseY = Math.min(noteY, tieTarget.noteY) - NOTE_RY - 4;
+                                  const baseY = tieAbove
+                                    ? Math.min(noteY, tieTarget.noteY) - NOTE_RY - 4
+                                    : Math.max(noteY, tieTarget.noteY) + NOTE_RY + 4;
                                   const w = x2 - x1;
-                                  // Fixed arc height — ties stay the same visual size regardless
-                                  // of how far apart the tied notes are. Per-note `tieArc`
-                                  // (pixels) overrides the 32 default.
                                   const outerH = note.tieArc != null ? note.tieArc : 32;
                                   const innerH = Math.max(4, outerH - 7);
                                   const rOuter = outerH / 2 + (w * w) / (8 * outerH);
                                   const rInner = innerH / 2 + (w * w) / (8 * innerH);
+                                  // SVG sweep flags control curve direction; flip them for below.
+                                  const so = tieAbove ? 1 : 0;
+                                  const si = tieAbove ? 0 : 1;
                                   return (
-                                    <path d={`M ${x1} ${baseY} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${baseY} A ${rInner} ${rInner} 0 0 0 ${x1} ${baseY} Z`}
+                                    <path d={`M ${x1} ${baseY} A ${rOuter} ${rOuter} 0 0 ${so} ${x2} ${baseY} A ${rInner} ${rInner} 0 0 ${si} ${x1} ${baseY} Z`}
                                       fill="#555" stroke="none" style={{ pointerEvents: "none" }} />
                                   );
                                 })()}
                                 {note.tie && !note.isRest && !tieTarget && (() => {
-                                  // Cross-measure tapered tie (same true-arc construction).
+                                  // Cross-measure tapered tie. Same direction rule as within-measure.
                                   const targetStaff = note.staff === "bass" ? "bass" : "treble";
                                   const nextMeasure = (ci + 1 < rowMeasures.length) ? rowMeasures[ci + 1] : null;
                                   let nextNote = null;
@@ -5756,20 +5994,125 @@ function MusicNotationEditor() {
                                     x2 = mx + measureWidth - 4;
                                     opacity = 0.75;
                                   }
-                                  const baseY = noteY - NOTE_RY - 4;
+                                  const LETTER_ORD = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
+                                  const pIdx = LETTER_ORD[note.name] + (note.octave || 0) * 7;
+                                  let anyAbove = false, anyBelow = false;
+                                  if (Array.isArray(note.chord)) {
+                                    for (const cn of note.chord) {
+                                      const cIdx = LETTER_ORD[cn.name] + (cn.octave || 0) * 7;
+                                      if (cIdx > pIdx) anyAbove = true;
+                                      else if (cIdx < pIdx) anyBelow = true;
+                                    }
+                                  }
+                                  const stemDir = forcedStemMap[ni];
+                                  const tieAbove = anyAbove && !anyBelow ? false
+                                    : anyBelow && !anyAbove ? true
+                                    : stemDir === "down";
+                                  const baseY = tieAbove ? (noteY - NOTE_RY - 4) : (noteY + NOTE_RY + 4);
                                   const w = x2 - x1;
-                                  // Fixed arc height — ties stay the same visual size regardless
-                                  // of how far apart the tied notes are. Per-note `tieArc`
-                                  // (pixels) overrides the 32 default.
                                   const outerH = note.tieArc != null ? note.tieArc : 32;
                                   const innerH = Math.max(4, outerH - 7);
                                   const rOuter = outerH / 2 + (w * w) / (8 * outerH);
                                   const rInner = innerH / 2 + (w * w) / (8 * innerH);
+                                  const so = tieAbove ? 1 : 0;
+                                  const si = tieAbove ? 0 : 1;
                                   return (
-                                    <path d={`M ${x1} ${baseY} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${baseY} A ${rInner} ${rInner} 0 0 0 ${x1} ${baseY} Z`}
+                                    <path d={`M ${x1} ${baseY} A ${rOuter} ${rOuter} 0 0 ${so} ${x2} ${baseY} A ${rInner} ${rInner} 0 0 ${si} ${x1} ${baseY} Z`}
                                       fill="#555" stroke="none" opacity={opacity} style={{ pointerEvents: "none" }} />
                                   );
                                 })()}
+                                {/* Chord-member ties. A tie on the c-th chord
+                                    member sustains THAT specific pitch into
+                                    the next same-pitch chord member in the
+                                    same measure, independent of the primary
+                                    and other chord tones. */}
+                                {Array.isArray(note.chord) && note.chord.map((cn, ci) => {
+                                  if (!cn.tie) return null;
+                                  const LETTER_ORD = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
+                                  const primaryIdx = LETTER_ORD[note.name] + (note.octave || 0) * 7;
+                                  const cIdx = LETTER_ORD[cn.name] + (cn.octave || 0) * 7;
+                                  const cy = noteY + (primaryIdx - cIdx) * (LINE_SPACING / 2);
+                                  // Find the next same-(letter,octave) chord member. Search this
+                                  // measure first; then the next measure (cross-barline ties).
+                                  let target = null;
+                                  let crossMeasure = false;
+                                  const findChordMatch = (cand) => {
+                                    if (cand.note.isRest) return null;
+                                    const candStaff = cand.note.staff === "bass" ? "bass" : "treble";
+                                    if (candStaff !== noteStaffKey) return null;
+                                    if (!Array.isArray(cand.note.chord)) return null;
+                                    for (let ck = 0; ck < cand.note.chord.length; ck++) {
+                                      const cc = cand.note.chord[ck];
+                                      if (cc.name === cn.name && cc.octave === cn.octave) {
+                                        const candPrimaryIdx = LETTER_ORD[cand.note.name] + (cand.note.octave || 0) * 7;
+                                        const candCIdx = LETTER_ORD[cc.name] + (cc.octave || 0) * 7;
+                                        const cy2 = cand.noteY + (candPrimaryIdx - candCIdx) * (LINE_SPACING / 2);
+                                        return { x: cand.noteX, y: cy2 };
+                                      }
+                                    }
+                                    return null;
+                                  };
+                                  for (let j = noteDataIdx + 1; j < noteData.length; j++) {
+                                    target = findChordMatch(noteData[j]);
+                                    if (target) break;
+                                  }
+                                  // Not found in this measure → look in the next measure on the row
+                                  if (!target && ci + 1 < rowMeasures.length) {
+                                    const nextMx = mx + measureWidth;
+                                    const nextM = rowMeasures[ci + 1];
+                                    for (const n of nextM.notes) {
+                                      if (n.isRest) continue;
+                                      const nStaff = n.staff === "bass" ? "bass" : "treble";
+                                      if (nStaff !== noteStaffKey) continue;
+                                      if (!Array.isArray(n.chord)) continue;
+                                      for (const cc of n.chord) {
+                                        if (cc.name === cn.name && cc.octave === cn.octave) {
+                                          const candPrimaryIdx = LETTER_ORD[n.name] + (n.octave || 0) * 7;
+                                          const candCIdx = LETTER_ORD[cc.name] + (cc.octave || 0) * 7;
+                                          // Use the staff-baseline noteY for the NEXT measure's
+                                          // primary (same as this note's row position), then offset
+                                          // to the chord's cy.
+                                          const yBase = (n.staff === "bass" ? BASS_STAFF_TOP : STAFF_TOP);
+                                          const refPrimaryY = yBase + (18 - candPrimaryIdx % 14) * (LINE_SPACING / 2); // approximate — replaced below
+                                          const cy2 = noteY + (candPrimaryIdx - candCIdx) * (LINE_SPACING / 2) /* offset relative */;
+                                          target = { x: nextMx + (n.x || 80), y: cy2 };
+                                          crossMeasure = true;
+                                          break;
+                                        }
+                                      }
+                                      if (target) break;
+                                    }
+                                  }
+                                  // Still not found → hanging tie (last measure of row). Truncate.
+                                  if (!target && ci === rowMeasures.length - 1) {
+                                    target = { x: mx + measureWidth - 4, y: cy };
+                                    crossMeasure = true;
+                                  }
+                                  if (!target) return null;
+                                  // Chord-tie direction: if this member is ABOVE the primary
+                                  // notehead, curve UP (arc sits above the chord notehead);
+                                  // if BELOW, curve DOWN. Prevents overlap with the primary
+                                  // tie and the shared stem. cy < noteY means "above" (SVG Y
+                                  // grows downward).
+                                  const tieAbove = cy < noteY;
+                                  const x1 = noteX + NOTE_RX;
+                                  const x2 = target.x - NOTE_RX * 0.2;
+                                  const baseY = tieAbove
+                                    ? Math.min(cy, target.y) - NOTE_RY - 4
+                                    : Math.max(cy, target.y) + NOTE_RY + 4;
+                                  const w = x2 - x1;
+                                  const outerH = 32;
+                                  const innerH = Math.max(4, outerH - 7);
+                                  const rOuter = outerH / 2 + (w * w) / (8 * outerH);
+                                  const rInner = innerH / 2 + (w * w) / (8 * innerH);
+                                  const so = tieAbove ? 1 : 0;
+                                  const si = tieAbove ? 0 : 1;
+                                  return (
+                                    <path key={`chordtie-${ci}`}
+                                      d={`M ${x1} ${baseY} A ${rOuter} ${rOuter} 0 0 ${so} ${x2} ${baseY} A ${rInner} ${rInner} 0 0 ${si} ${x1} ${baseY} Z`}
+                                      fill="#555" stroke="none" style={{ pointerEvents: "none" }} />
+                                  );
+                                })}
                                 {note.dotted && (
                                   <circle cx={noteX + NOTE_RX + 18}
                                     cy={note.isRest ? STAFF_TOP + 1.5 * LINE_SPACING : noteY - 3}
@@ -6388,12 +6731,15 @@ function MusicNotationEditor() {
         // the D♯ black key can render between them.
         const noteOrder = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
         let minNoteVal = 999, maxNoteVal = 0;
-        measures.forEach((m, mi) => m.notes.forEach(n => {
+        measures.forEach((m, mi) => m.notes.forEach((n, ni) => {
           if (n.isRest) return;
           const noteStaff = n.staff === "bass" ? "bass" : "treble";
           if (clef !== "grand" && noteStaff !== clef) return;
           const effKS = effectiveKeySig(measures, mi, keySig);
-          const pk = pitchToPianoKey(n.name, n.octave, n.accidental, effKS);
+          const accResolved = (n.accidental && n.accidental !== 'none')
+            ? n.accidental
+            : effectiveAccidentalInMeasure(measures, mi, ni, undefined, n.name, n.octave);
+          const pk = pitchToPianoKey(n.name, n.octave, accResolved, effKS);
           const parsed = pk.match(/^([A-G])(#?)(-?\d+)$/);
           if (!parsed) return;
           const letter = parsed[1];
