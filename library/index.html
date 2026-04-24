@@ -226,7 +226,7 @@
     </div>
     <nav class="nav-links">
       <a href="/" data-i18n="navHome">Home</a>
-      <a href="/app" data-i18n="navLaunchApp">Launch app</a>
+      <a href="/keyboard" data-i18n="navLaunchApp">Launch app</a>
     </nav>
   </div>
   <div class="container">
@@ -611,7 +611,7 @@
   // (e.g. /<EDIT_PATH>/library → /<EDIT_PATH>). Song clicks open edit mode.
   const editPrefix = isAdmin
     ? window.location.pathname.replace(/\/library\/?$/, '')
-    : '/app';
+    : '/keyboard';
 
   // --- Embed mode ---
   // When the library is rendered inside the main app's iframe overlay,
