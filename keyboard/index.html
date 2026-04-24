@@ -199,7 +199,14 @@ const APP_STRINGS = APP_T[getAppLang()];
 // verify at a glance which build a PWA / browser is actually running.
 // Keep in sync with CACHE_VERSION in /sw.js. Shown in the top bar so we can
 // verify at a glance which build a PWA / browser is actually running.
-const APP_VERSION = 'v34';
+const APP_VERSION = 'v79';
+
+// User's octave-label convention: the octave number increments at the A
+// boundary, not the C boundary like SPN. So lowest piano key = A1 (SPN A0)
+// and middle C = C4 (SPN C4). A and B get a +1 shift; C/D/E/F/G do not.
+// Used for every UI display of an octave number (piano labels, hover, toasts).
+const displayOctave = (letter, spnOctave) =>
+  (letter === 'A' || letter === 'B') ? (spnOctave + 1) : spnOctave;
 
 const STAFF_TOP = 60;
 const LINE_SPACING = 32;
@@ -210,7 +217,11 @@ const NOTE_RY = 16;
 const STEM_HEIGHT = 90;
 const CLEF_WIDTH = 110;
 const TIME_SIG_WIDTH = 90;
-const MEASURES_PER_ROW = 100;
+// HARD RULE: no cap on measures per row. The staff is ALWAYS a single row
+// containing every measure in the song; the staff area scrolls horizontally.
+// Never reintroduce a per-row cap — wrap-after-N-measures produced bizarre
+// layouts on long songs (e.g. Fur Elise's 106 measures split at 100 → row 0
+// had 100 measures crammed into a 30k-px strip, row 1 had the last 6).
 const ROW_HEIGHT = 420;
 const BASS_STAFF_TOP = STAFF_TOP + 4 * LINE_SPACING + 220;
 
@@ -220,9 +231,53 @@ const NOTE_DURATIONS = [
   { id: "quarter", label: "quarter", beats: 1, name: "Quarter" },
   { id: "eighth", label: "eighth", beats: 0.5, name: "8th" },
   { id: "sixteenth", label: "sixteenth", beats: 0.25, name: "16th" },
+  { id: "thirty-second", label: "thirty-second", beats: 0.125, name: "32nd" },
 ];
 
-const NOTE_UNICODE_ICONS = { whole: "𝅝", half: "𝅗𝅥", quarter: "𝅘𝅥", eighth: "𝅘𝅥𝅮", sixteenth: "𝅘𝅥𝅯" };
+const NOTE_UNICODE_ICONS = { whole: "𝅝", half: "𝅗𝅥", quarter: "𝅘𝅥", eighth: "𝅘𝅥𝅮", sixteenth: "𝅘𝅥𝅯", "thirty-second": "𝅘𝅥𝅰" };
+
+// Time-sig classification + tempo math for compound (/8) meters.
+// isCompoundMeter(timeSig): top ∈ {6,9,12} and bottom === 8. These meters
+// pulse on dotted-quarter beats (3 eighths each). 3/8 is SIMPLE — one
+// group of 3 eighths, eighth note IS the beat.
+const isCompoundMeter = (ts) => ts && ts.bottom === 8 && (ts.top === 6 || ts.top === 9 || ts.top === 12);
+
+// Seconds per quarter note at a given BPM + time signature. BPM is
+// interpreted in whichever unit is musically natural for the meter:
+//   bottom=4 (4/4, 3/4, 2/4) → BPM = quarter notes per minute
+//   bottom=2 (2/2)           → BPM = half notes per minute
+//   compound /8 (6,9,12/8)   → BPM = dotted-quarter pulses per minute
+//   simple /8 (3/8)          → BPM = eighth notes per minute
+// Returns seconds-per-quarter — internal beat math (NOTE_DURATIONS.beats
+// in quarter units, offsetBeats accumulated as quarter-beats) multiplies
+// through to absolute seconds unchanged.
+function quarterSecondsAtBpm(bpm, ts) {
+  if (!bpm || bpm <= 0) return 0.5;
+  if (!ts) return 60 / bpm;
+  if (ts.bottom === 2) return (60 / bpm) / 2;              // half → quarter
+  if (ts.bottom === 8) {
+    if (isCompoundMeter(ts)) return (60 / bpm) / 1.5;      // dotted-quarter → quarter
+    return (60 / bpm) * 2;                                  // eighth → quarter (3/8)
+  }
+  return 60 / bpm;                                          // bottom=4 default
+}
+
+// Number of PULSE beats per measure for the metronome. In compound /8 this
+// is top/3 (dotted-quarter count). In simple meters it equals timeSig.top.
+function pulseBeatsPerMeasure(ts) {
+  if (!ts) return 4;
+  if (isCompoundMeter(ts)) return ts.top / 3;  // 6/8 → 2, 9/8 → 3, 12/8 → 4
+  return ts.top;
+}
+
+// Total measure capacity expressed in QUARTER-note units. Used by the
+// renderer to size the beat grid so notes span the full measure regardless
+// of time signature. 3/8 → 1.5, 4/4 → 4, 6/8 → 3, 9/8 → 4.5, 12/8 → 6,
+// 2/2 → 4, 2/4 → 2, 3/4 → 3.
+function measureBeatsInQuarters(ts) {
+  if (!ts || !ts.bottom) return 4;
+  return (ts.top * 4) / ts.bottom;
+}
 
 function DurationIcon({ type, size = 28 }) {
   const ch = NOTE_UNICODE_ICONS[type];
@@ -361,7 +416,7 @@ function yToNote(y, clefMode) {
     if (idx > 0) { noteIdx--; if (noteIdx < 0) { noteIdx = 6; baseOctave--; } }
     else { noteIdx++; if (noteIdx > 6) { noteIdx = 0; baseOctave++; } }
   }
-  if (baseOctave < 0 || baseOctave > 7) return null;
+  if (baseOctave < 0 || baseOctave > 8) return null;
   return { name: NOTE_NAMES[noteIdx], octave: baseOctave };
 }
 
@@ -988,6 +1043,17 @@ function LibraryOverlay({ open, isAdmin, onClose, onOpenSong }) {
 }
 
 function MusicNotationEditor() {
+  // Celebration audio: decoded AudioBuffer, played through the already-
+  // unlocked Web Audio context. AudioBufferSourceNode is the most reliable
+  // path on iOS browsers — Tone.Player added one layer of abstraction that
+  // failed on iPad Chrome; HTMLAudioElement gets blocked outside the
+  // user gesture even with priming. Raw buffer source works everywhere
+  // the piano notes work, since both use the same context.
+  const celebrationBufferRef = useRef(null);
+  // HTMLAudio kept as a last-ditch fallback (fires if the buffer hasn't
+  // finished decoding before the first celebration).
+  const celebrationAudioRef = useRef(null);
+
   // Unlock audio on first user interaction
   useEffect(() => {
     let unlocked = false;
@@ -1013,6 +1079,39 @@ function MusicNotationEditor() {
         testSynth.volume.value = -100;
         testSynth.triggerAttackRelease("C4", "32n");
         setTimeout(() => { try { testSynth.dispose(); } catch(e){} }, 100);
+        // Decode celebration.mp3 into a raw AudioBuffer on the unlocked
+        // context. This is the only path that works on ALL iOS browsers —
+        // Tone.Player added its own layer that failed on iPad Chrome, and
+        // HTMLAudioElement gets blocked outside a user gesture.
+        if (!celebrationBufferRef.current && ctx && ctx.decodeAudioData) {
+          fetch('/public/celebration.mp3')
+            .then(r => r.arrayBuffer())
+            .then(ab => new Promise((resolve, reject) => {
+              // decodeAudioData has two signatures — Promise-returning (modern)
+              // and callback-based (older Safari/iOS). Support both.
+              try {
+                const p = ctx.decodeAudioData(ab, resolve, reject);
+                if (p && typeof p.then === 'function') p.then(resolve, reject);
+              } catch (e) { reject(e); }
+            }))
+            .then(buf => { celebrationBufferRef.current = buf; })
+            .catch(() => { /* decode failed — fallback to HTMLAudio below */ });
+        }
+        // Secondary: prime an HTMLAudio element too. Cheap insurance for
+        // the first celebration if the Tone.Player buffer hasn't finished
+        // loading yet.
+        if (!celebrationAudioRef.current) {
+          const a = new Audio('/public/celebration.mp3');
+          a.preload = 'auto';
+          a.volume = 0.9;
+          a.muted = true;
+          a.play().then(() => {
+            a.pause();
+            a.currentTime = 0;
+            a.muted = false;
+          }).catch(() => { a.muted = false; });
+          celebrationAudioRef.current = a;
+        }
       } catch(e) { unlocked = false; }
       document.removeEventListener("click", unlockAudio);
       document.removeEventListener("touchstart", unlockAudio);
@@ -1106,6 +1205,7 @@ function MusicNotationEditor() {
   const [selectedDuration, setSelectedDuration] = useState("quarter");
   const [isDotted, setIsDotted] = useState(false);
   const [isTriplet, setIsTriplet] = useState(false);
+  const [isGraceNote, setIsGraceNote] = useState(false);
   const [selectedAccidental, setSelectedAccidental] = useState("none");
   const [keySig, setKeySig] = useState("C");
   const [songKey, setSongKey] = useState("C");
@@ -1118,6 +1218,16 @@ function MusicNotationEditor() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showHomeScreenHint, setShowHomeScreenHint] = useState(false);
+  // Edit-mode feedback toast: surfaces silent refusals on the staff (measure
+  // is full, duplicate pitch, published song etc.) so users know WHY a click
+  // didn't add a note. Auto-clears after ~2 s.
+  const [editHint, setEditHint] = useState(null);
+  const editHintTimerRef = useRef(null);
+  const showEditHint = useCallback((text) => {
+    setEditHint({ text, id: Date.now() });
+    if (editHintTimerRef.current) clearTimeout(editHintTimerRef.current);
+    editHintTimerRef.current = setTimeout(() => setEditHint(null), 2200);
+  }, []);
   const [lyricsScrollY, setLyricsScrollY] = useState(0);
   const [playMode, setPlayMode] = useState(null); // null, "learn", or "practice"
   const playModeRef = useRef(null);
@@ -1618,7 +1728,8 @@ function MusicNotationEditor() {
                   }
                 } catch (e) { /* localStorage not available */ }
                 const phrases = PHRASES_BY_LANG[lang];
-                setCelebrateMsg(phrases[Math.floor(Math.random() * phrases.length)]);
+                const chosenPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+                // Confetti fires immediately with the audio — unchanged.
                 if (typeof window !== 'undefined' && window.confetti) {
                   const colors = ['#dc2626','#f97316','#facc15','#22c55e','#3b82f6','#a855f7','#ec4899'];
                   window.confetti({ particleCount: 180, spread: 100, origin: { y: 0.65 }, colors });
@@ -1626,11 +1737,37 @@ function MusicNotationEditor() {
                   setTimeout(() => window.confetti({ particleCount: 120, spread: 70, origin: { x: 0.85, y: 0.7 }, colors }), 450);
                 }
                 try {
-                  // Play the celebration music (user-composed). One-shot.
-                  const audio = new Audio('/public/celebration.mp3');
-                  audio.volume = 0.9;
-                  audio.play().catch(() => { /* autoplay blocked or file missing */ });
+                  // Preferred: raw AudioBufferSourceNode on the unlocked
+                  // Web Audio graph. Works on every browser once the
+                  // context is running (same context the piano plays
+                  // through). Falls back to HTMLAudio if the buffer hasn't
+                  // finished decoding (first visit, slow network).
+                  const buf = celebrationBufferRef.current;
+                  const ctx = (typeof Tone !== 'undefined' && Tone.context)
+                    ? (Tone.context.rawContext || Tone.context) : null;
+                  if (buf && ctx) {
+                    const src = ctx.createBufferSource();
+                    src.buffer = buf;
+                    const gain = ctx.createGain();
+                    gain.gain.value = 0.9;
+                    src.connect(gain).connect(ctx.destination);
+                    src.start(0);
+                  } else {
+                    let audio = celebrationAudioRef.current;
+                    if (!audio) {
+                      audio = new Audio('/public/celebration.mp3');
+                      audio.volume = 0.9;
+                      celebrationAudioRef.current = audio;
+                    }
+                    audio.currentTime = 0;
+                    audio.volume = 0.9;
+                    audio.play().catch(() => { /* autoplay blocked or file missing */ });
+                  }
                 } catch (e) { /* audio unavailable */ }
+                // Text appears 2 s after the last correct note. We're already
+                // 1 s in (this callback fires from the outer 1000 ms timer),
+                // so wait another 1000 ms. User request 2026-04-24.
+                setTimeout(() => setCelebrateMsg(chosenPhrase), 1000);
                 setTimeout(() => {
                   // Fireworks done — hide the message, exit practice mode,
                   // and leave the rainbow tracker parked on the last note.
@@ -1638,7 +1775,7 @@ function MusicNotationEditor() {
                   practiceJustFinishedRef.current = true;
                   setPlayMode(null);
                   celebratingRef.current = false;
-                }, 3500);
+                }, 4700);
               }, 1000);
             }
           }
@@ -1692,19 +1829,43 @@ function MusicNotationEditor() {
   // ─── Persistent Storage (Server API) ────────────────────────────────
   const hasLoadedRef = useRef(false);
 
-  const recalcMeasures = (measures) => {
+  const recalcMeasures = (measures, ts) => {
+    const mbq = measureBeatsInQuarters(ts || timeSig);
     return measures.map(m => {
       if (m.notes.length === 0) return m;
-      const beatSize = (measureWidth - 100) / 4;
+      const beatSize = (measureWidth - 100) / mbq;
       const offsets = { treble: 0, bass: 0 };
+      // Pass 1: position principal notes at the beat grid. Grace notes get a
+      // placeholder x and are deferred — they don't advance the beat offset
+      // per the grace-note hard rule (ornamental, zero rhythmic value).
       const notes = m.notes.map((note) => {
+        const staffKey = note.staff === "bass" ? "bass" : "treble";
+        if (note.grace) {
+          return { ...note, x: 80 + offsets[staffKey] * beatSize };
+        }
         const baseDur = NOTE_DURATIONS.find(d => d.id === note.duration)?.beats || 1;
         const dur = note.dotted ? baseDur * 1.5 : note.triplet ? 1 / 3 : baseDur;
-        const staffKey = note.staff === "bass" ? "bass" : "treble";
         const x = 80 + offsets[staffKey] * beatSize;
         offsets[staffKey] += dur;
         return { ...note, x };
       });
+      // Pass 2: snap each grace note just before the next principal note on
+      // the same staff. If there is no principal after it (trailing grace),
+      // leave the placeholder x. Stacks multiple graces before one principal.
+      const GRACE_OFFSET = 22;
+      for (let i = 0; i < notes.length; i++) {
+        if (!notes[i].grace) continue;
+        let graceRun = 1;
+        while (i + graceRun < notes.length && notes[i + graceRun].grace && notes[i + graceRun].staff === notes[i].staff) graceRun++;
+        const principalIdx = i + graceRun;
+        if (principalIdx < notes.length && notes[principalIdx].staff === notes[i].staff && !notes[principalIdx].grace) {
+          const px = notes[principalIdx].x;
+          for (let g = 0; g < graceRun; g++) {
+            notes[i + g] = { ...notes[i + g], x: px - GRACE_OFFSET * (graceRun - g) };
+          }
+          i = principalIdx - 1;
+        }
+      }
       return { ...m, notes };
     });
   };
@@ -1732,9 +1893,21 @@ function MusicNotationEditor() {
     celebratingRef.current = false;
     practiceJustFinishedRef.current = false;
     setPressedPianoKeys({});
-    // Reset scroll to the start of the piece.
+    // Reset scroll to the start of the piece — always land on measure 1
+    // no matter where the user was scrolled before. Runs twice: immediate
+    // (for in-session song switches) and after a tick (for page-load timing
+    // when the SVG hasn't fully rendered yet so scrollLeft/Top don't stick).
     setTabletViewX(0);
-    if (scoreAreaRef.current) scoreAreaRef.current.scrollLeft = 0;
+    setTabletViewYOffset(0);
+    const resetScroll = () => {
+      if (scoreAreaRef.current) {
+        scoreAreaRef.current.scrollLeft = 0;
+        scoreAreaRef.current.scrollTop = 0;
+      }
+    };
+    resetScroll();
+    setTimeout(resetScroll, 50);
+    setTimeout(resetScroll, 200);
 
     loadedFromRef.current = song.title ? (song.title.replace(/[\/\\:*?"<>|]/g, '_') + '.json') : null;
     isPublishedRef.current = !!song.published;
@@ -1745,7 +1918,7 @@ function MusicNotationEditor() {
         ...m,
         notes: (m.notes || []).map(n => n.staff ? n : { ...n, staff: defaultStaff }),
       }));
-      setMeasures(recalcMeasures(migrated));
+      setMeasures(recalcMeasures(migrated, song.timeSig || { top: 4, bottom: 4 }));
     }
     const t = song.title || "Untitled Score";
     setTitle(t);
@@ -2124,8 +2297,10 @@ function MusicNotationEditor() {
     let idCounter = Date.now();
 
     // Quarter-note beats per duration name. Dotted/triplet applied separately.
-    const DUR_BEATS = { whole: 4, half: 2, quarter: 1, eighth: 0.5, sixteenth: 0.25 };
+    const DUR_BEATS = { whole: 4, half: 2, quarter: 1, eighth: 0.5, sixteenth: 0.25, 'thirty-second': 0.125 };
     const noteBeats = (n) => {
+      // Grace notes are ornaments — zero rhythmic value, zero measure capacity.
+      if (n.grace) return 0;
       let b = DUR_BEATS[n.duration] || 1;
       if (n.dotted) b *= 1.5;
       if (n.triplet) b *= 2 / 3;
@@ -2174,6 +2349,7 @@ function MusicNotationEditor() {
         const primaryVoice = primaryVoicePerPartStaff[partIdx];
 
         // Barlines — first part's barlines win (they're normally consistent).
+        // Reads both repeats (forward/backward) and voltas (<ending>).
         if (partIdx === 0) {
           for (const bar of m.querySelectorAll('barline')) {
             const repeat = bar.querySelector('repeat');
@@ -2181,6 +2357,23 @@ function MusicNotationEditor() {
               const dir = repeat.getAttribute('direction');
               if (dir === 'forward') measureProps.repeatStart = true;
               if (dir === 'backward') measureProps.repeat = true;
+            }
+            // <ending> represents 1st/2nd/Nth ending voltas. number="1" → 1st
+            // ending, "2" → 2nd ending. type="start" on the first measure of
+            // the ending, "stop"/"discontinue" on the last.
+            const ending = bar.querySelector('ending');
+            if (ending) {
+              const num = (ending.getAttribute('number') || '').trim();
+              const type = ending.getAttribute('type');
+              const is1 = num === '1' || num.startsWith('1,') || num.startsWith('1.');
+              const is2 = num === '2' || num.startsWith('2,') || num.startsWith('2.') || num.includes('2');
+              if (type === 'start') {
+                if (is1) { measureProps.volta1Start = true; measureProps.volta1Label = num || '1.'; }
+                else if (is2) { measureProps.volta2Start = true; }
+              } else if (type === 'stop' || type === 'discontinue') {
+                if (is1) measureProps.volta1End = true;
+                else if (is2) measureProps.volta2End = true;
+              }
             }
           }
         }
@@ -2285,8 +2478,8 @@ function MusicNotationEditor() {
 
         const durMap = {
           'whole': 'whole', 'half': 'half', 'quarter': 'quarter',
-          'eighth': 'eighth', '16th': 'sixteenth', '32nd': 'sixteenth',
-          'breve': 'whole'
+          'eighth': 'eighth', '16th': 'sixteenth', '32nd': 'thirty-second',
+          '64th': 'thirty-second', 'breve': 'whole'
         };
         const duration = durMap[type] || 'quarter';
 
@@ -2360,12 +2553,24 @@ function MusicNotationEditor() {
         const stemTxt = stemEl ? (stemEl.textContent || '').trim() : '';
         const stem = (stemTxt === 'up' || stemTxt === 'down') ? stemTxt : undefined;
 
+        // Grace note: <grace/> child marks this as an ornament. `slash="yes"`
+        // means acciaccatura (crushed, short). Anything else defaults to
+        // acciaccatura too — it's the common case and the only visible
+        // distinction is the stem slash. Grace notes DO NOT consume measure
+        // beat capacity; the downstream recalc treats them accordingly.
+        const graceEl = el.querySelector(':scope > grace');
+        const grace = !!graceEl;
+        const graceType = grace
+          ? (graceEl.getAttribute('slash') === 'no' ? 'appoggiatura' : 'acciaccatura')
+          : undefined;
+
         nfNotes.push({
           id: idCounter++, x: 80,
           name, octave, duration, dotted, triplet, accidental, isRest, staff,
           lyric,
           ...(verses ? { verses } : {}),
           ...(stem ? { stem } : {}),
+          ...(grace ? { grace: true, graceType } : {}),
           tie
         });
         }
@@ -2885,7 +3090,7 @@ function MusicNotationEditor() {
       if (isPlaying && playStartTimeRef.current) {
         const beatDuration = 60 / bpm;
         const interval = metronomeMode === "voice_eighth" ? beatDuration * 500 : beatDuration * 1000;
-        const totalTicks = metronomeMode === "voice_eighth" ? beatsPerMeasure * 2 : beatsPerMeasure;
+        const totalTicks = metronomeMode === "voice_eighth" ? pulseBeatsPerMeasure(timeSig) * 2 : pulseBeatsPerMeasure(timeSig);
 
         // Set up click synth if needed
         let clickSynth = null;
@@ -2967,7 +3172,7 @@ function MusicNotationEditor() {
         if (metronomeMode === "voice_eighth") {
           const halfBeatInterval = (60 / bpm) * 500;
           let tick = 0;
-          const totalTicks = beatsPerMeasure * 2;
+          const totalTicks = pulseBeatsPerMeasure(timeSig) * 2;
           setMetronomeBeat(0);
           speakBeat("1");
 
@@ -2993,8 +3198,9 @@ function MusicNotationEditor() {
             speakBeat(1);
           }
 
+          const pulses = pulseBeatsPerMeasure(timeSig);
           metronomeRef.current = setInterval(() => {
-            beat = (beat + 1) % beatsPerMeasure;
+            beat = (beat + 1) % pulses;
             setMetronomeBeat(beat);
             if (metronomeMode === "click" && metronomeTickRef.current) {
               metronomeTickRef.current.triggerAttackRelease(beat === 0 ? "C5" : "C4", "32n");
@@ -3023,7 +3229,10 @@ function MusicNotationEditor() {
     };
   }, [metronomeOn, bpm, beatsPerMeasure, metronomeMode, speakBeat, isPlaying]);
 
-  const numRows = Math.ceil(measures.length / MEASURES_PER_ROW);
+  // Single-row layout: every measure is on row 0. See HARD RULE at the
+  // MEASURES_PER_ROW removal site near the top of this file.
+  const MEASURES_PER_ROW = Math.max(1, measures.length);
+  const numRows = 1;
   const keySigData = KEY_SIGNATURES.find(k => k.id === keySig);
   const keySigWidth = keySigData ? Math.max(keySigData.sharps.length * 36, keySigData.flats.length * 32, 0) + (keySigData.sharps.length > 0 || keySigData.flats.length > 0 ? 20 : 0) : 0;
   const contentStart = STAFF_LEFT + CLEF_WIDTH + keySigWidth + TIME_SIG_WIDTH;
@@ -3074,13 +3283,24 @@ function MusicNotationEditor() {
   const isTablet = isTouchDevice && !isMobile;
   const isWidescreen = !isMobile; // tablet or desktop
   // SVG content: fixed viewBox height — staff never moves
-  const tabletViewTop = isTablet ? STAFF_TOP - 160 : STAFF_TOP - 120; // more space above staff so it sits closer to the piano below
+  const tabletViewTop = isTablet ? STAFF_TOP - 160 : STAFF_TOP - 120;
   // tabletViewH controls the SVG-space height that fits on screen. Smaller
   // value = fewer SVG units per screen height = content appears bigger.
   // Tablet (iPad) used to have larger values than desktop (514/800 vs 410/700),
   // which made the staff + lyrics feel small. Bumping the staff+lyrics as one
   // entity by matching desktop's values.
   const tabletViewH = clef === "grand" ? (isTablet ? 540 : 700) : (isTablet ? 340 : 410);
+  // Edit mode (not childLock): the SVG is rendered TALLER than the container
+  // so the user can scroll vertically to reach ledger-line notes above +
+  // below the staff at full note size. editViewTop/editViewH override the
+  // normal viewBox only in that mode.
+  //   - editViewTop = -360 px: well above C8 (which sits near y ≈ -228 on
+  //     the treble staff reference) with ~130 px of headroom.
+  //   - editViewH covers down past A1 (bass y ≈ 632) with padding.
+  const editViewTop = STAFF_TOP - 420;
+  const editViewH = clef === "grand"
+    ? 1120
+    : 900;
   // Fixed UI: top bar (56) + toolbar (120 desktop / 40 tablet in edit, 0 in baby) + title (65) + padding
   const wideFixedH = isWidescreen ? (56 + (childLock ? 0 : (isTablet ? 40 : 80)) + 65 + 10) : 128;
   // Available height for: score + gap + piano (all scale together)
@@ -3182,7 +3402,14 @@ function MusicNotationEditor() {
 
     if (svgPt.x < contentStart) { setHoverNote(null); return; }
 
-    const row = Math.floor((svgPt.y - STAFF_TOP + (clef === "grand" ? 0 : ROW_HEIGHT / 2)) / ROW_HEIGHT);
+    // Same clamped-y row-detect as handleStaffClick: clicks/hovers above the
+    // staff stay on row 0 so the hover suggestion fires for high ledger-line
+    // notes (G5, A5, B5, C6 …) up to C8, not just within the staff body.
+    const effRowHeight = clef === "grand"
+      ? (BASS_STAFF_TOP + 4 * LINE_SPACING - STAFF_TOP + 220)
+      : ROW_HEIGHT;
+    const yOffsetForRow = Math.max(0, svgPt.y - STAFF_TOP + (clef === "grand" ? 0 : ROW_HEIGHT / 2));
+    const row = Math.floor(yOffsetForRow / effRowHeight);
     if (row < 0 || row >= Math.ceil(measures.length / MEASURES_PER_ROW)) { setHoverNote(null); return; }
 
     const rowY = row * ROW_HEIGHT;
@@ -3205,7 +3432,12 @@ function MusicNotationEditor() {
     setSelectedNote(null);
     setSelectedNotes([]);
     // Mobile and published songs are view-only
-    if ((isMobile || isPublishedRef.current) && !childLock) return;
+    if ((isMobile || isPublishedRef.current) && !childLock) {
+      if (isPublishedRef.current && !isMobile) {
+        showEditHint("song is published — click 📢 Published to unpublish before editing");
+      }
+      return;
+    }
     if (childLock) {
       // In baby mode, find the closest note to where they tapped and play from it
       const svgPt = getSVGPoint(e);
@@ -3260,8 +3492,16 @@ function MusicNotationEditor() {
 
     if (svgPt.x < contentStart) return;
 
-    // Determine which row was clicked
-    const row = Math.floor((svgPt.y - STAFF_TOP + (clef === "grand" ? 0 : ROW_HEIGHT / 2)) / ROW_HEIGHT);
+    // Determine which row was clicked. Clamp the y offset to non-negative
+    // so clicks ABOVE the staff (high ledger-line notes like G5/A5/B5/C6…)
+    // stay on row 0 instead of flooring to -1 and getting rejected.
+    // Grand staff uses a taller effective row height to cover both staves
+    // plus ledger-line space below the bass.
+    const effRowHeight = clef === "grand"
+      ? (BASS_STAFF_TOP + 4 * LINE_SPACING - STAFF_TOP + 220)
+      : ROW_HEIGHT;
+    const yOffsetForRow = Math.max(0, svgPt.y - STAFF_TOP + (clef === "grand" ? 0 : ROW_HEIGHT / 2));
+    const row = Math.floor(yOffsetForRow / effRowHeight);
     if (row < 0 || row >= Math.ceil(measures.length / MEASURES_PER_ROW)) return;
 
     // Determine which measure in the row
@@ -3288,22 +3528,32 @@ function MusicNotationEditor() {
       noteStaff = (svgPt.y - rowY) > midpoint ? "bass" : "treble";
     }
 
-    // Same-spot chord: if a note already sits at this x on this staff, add
-    // the clicked pitch to its chord array instead of creating a new note.
-    // Tolerance of ~30 px covers the notehead width comfortably.
+    // Same-spot chord: a click that lands within a note's own horizontal
+    // span (its notehead x, extended rightward by its duration in beats) is
+    // treated as adding a chord pitch to THAT note. A click past the end of
+    // a note's span (e.g. on beat 3 when there's only a half note on beats
+    // 1–2) is a NEW note, not a chord on the earlier note.
     if (!isRestMode) {
       const measureStartX = contentStart + colIdx * measureWidth;
       const localX = svgPt.x - measureStartX;
-      const tolerance = 30;
+      const firstNoteX = 80;
+      const usable = measureWidth - firstNoteX - 20;
+      const beatSize = usable / beatsPerMeasure;
       const existingIdx = measures[measureIdx].notes.findIndex(n => {
         const nStaff = n.staff === "bass" ? "bass" : "treble";
-        return nStaff === noteStaff && !n.isRest && Math.abs(n.x - localX) < tolerance;
+        if (nStaff !== noteStaff || n.isRest) return false;
+        const nx = n.x || 0;
+        const nBeats = getNoteBeat(n);
+        // Zone: from ~30 px before the notehead to its end of duration
+        // (minus 10 px gutter before the next beat starts, so clicks landing
+        // exactly on the next beat's spot become new notes).
+        return localX >= nx - 30 && localX < nx + nBeats * beatSize - 10;
       });
       if (existingIdx !== -1) {
         const existing = measures[measureIdx].notes[existingIdx];
         const dup = (existing.name === note.name && existing.octave === note.octave) ||
                     (existing.chord || []).some(c => c.name === note.name && c.octave === note.octave);
-        if (dup) return;
+        if (dup) { showEditHint(`${note.name}${displayOctave(note.name, note.octave)} is already in this chord`); return; }
         setMeasures(prev => {
           const next = [...prev];
           const notes = [...next[measureIdx].notes];
@@ -3319,9 +3569,16 @@ function MusicNotationEditor() {
       }
     }
 
-    // Each staff has its own beat capacity
+    // Enforce time-signature capacity per staff. Exceeding the beat count
+    // would corrupt the measure's rhythm — user must shrink existing notes,
+    // delete some, or add the new pitch as a chord member instead. The
+    // in-measure editHint explains exactly why the click was refused.
     const currentBeats = getMeasureBeats(measureIdx, noteStaff);
-    if (currentBeats + newBeats > beatsPerMeasure + 0.001) return;
+    if (currentBeats + newBeats > beatsPerMeasure + 0.001) {
+      const remaining = Math.max(0, beatsPerMeasure - currentBeats);
+      showEditHint(`measure ${measureIdx + 1} ${noteStaff} is full (${currentBeats.toFixed(2)}/${beatsPerMeasure} beats, ${remaining.toFixed(2)} left). To add a pitch at an existing beat, click directly ON a notehead (becomes a chord). To add a new beat, shrink or delete a note first.`);
+      return;
+    }
 
     const newNote = {
       id: Date.now() + Math.random(),
@@ -3505,7 +3762,9 @@ function MusicNotationEditor() {
     playTimeoutRef.current.forEach(clearTimeout);
     playTimeoutRef.current = [];
 
-    const beatDuration = 60 / currentBpm;
+    // Seconds per quarter-beat, meter-aware. In 6/8 at BPM=60, a quarter
+    // note is 0.667 s (dotted-quarter pulse = 1 s, eighth = 0.333 s).
+    const beatDuration = quarterSecondsAtBpm(currentBpm, timeSig);
     let time = 0;
     const timeouts = [];
     // Build a continuous (timeMs, x) timeline so the auto-scroll can run as
@@ -3679,7 +3938,7 @@ function MusicNotationEditor() {
         const noteTime = measureStart + (offsetBeats - shiftBeats) * beatDuration;
         // Add this note to the scroll timeline (one waypoint per musical instant)
         const measureLeftAbs = contentStart + mi * measureWidth;
-        const beatSize = (measureWidth - 100) / 4;
+        const beatSize = (measureWidth - 100) / measureBeatsInQuarters(timeSig);
         const noteAbsX = measureLeftAbs + 80 + offsetBeats * beatSize;
         pushTimelinePoint(noteTime * 1000, noteAbsX);
 
@@ -3940,7 +4199,7 @@ function MusicNotationEditor() {
 
     // Count-in if metronome is on
     if (metronomeOn) {
-      const beatDuration = 60 / bpm;
+      const beatDuration = quarterSecondsAtBpm(bpm, timeSig);
       const timeouts = [];
       if (metronomeMode === "voice_eighth") {
         for (let tick = 0; tick < 8; tick++) {
@@ -4408,7 +4667,7 @@ function MusicNotationEditor() {
             <button className={`m-btn ${tool === "note" ? "active" : ""}`} onClick={() => setTool("note")}>✏️ Note</button>
             <button className={`m-btn ${tool === "eraser" ? "active" : ""}`} onClick={() => setTool("eraser")}>🧹 Erase</button>
             <div className="m-sep" />
-            {NOTE_DURATIONS.map(d => (
+            {NOTE_DURATIONS.filter(d => d.id !== "thirty-second").map(d => (
               <button key={`rest-${d.id}`}
                 className={`m-btn-sq ${isRestMode && selectedDuration === d.id ? "active" : ""}`}
                 onClick={() => {
@@ -4447,7 +4706,7 @@ function MusicNotationEditor() {
       case "duration":
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-            {NOTE_DURATIONS.map(d => (
+            {NOTE_DURATIONS.filter(d => d.id !== "thirty-second").map(d => (
               <button key={d.id} className={`m-dur ${selectedDuration === d.id ? "active" : ""}`}
                 onClick={() => { setSelectedDuration(d.id); setIsDotted(false); setIsTriplet(false); }}>
                 <DurationIcon type={d.id} size={32} />
@@ -4482,12 +4741,23 @@ function MusicNotationEditor() {
             <button className="m-btn" onClick={removeMeasure}>− Measure</button>
             <button className="m-btn" onClick={clearAll} style={{ color: "var(--danger)" }}>Clear All</button>
             <div className="m-sep" />
-            <button className={`m-btn ${timeSig.top === 4 ? "active" : ""}`}
-              onClick={() => setTimeSig({ top: 4, bottom: 4 })}>4/4</button>
-            <button className={`m-btn ${timeSig.top === 3 ? "active" : ""}`}
-              onClick={() => setTimeSig({ top: 3, bottom: 4 })}>3/4</button>
-            <button className={`m-btn ${timeSig.top === 2 ? "active" : ""}`}
-              onClick={() => setTimeSig({ top: 2, bottom: 4 })}>2/4</button>
+            {[
+              { top: 4, bottom: 4 }, { top: 3, bottom: 4 }, { top: 2, bottom: 4 },
+              { top: 2, bottom: 2 },
+              { top: 3, bottom: 8 }, { top: 6, bottom: 8 },
+              { top: 9, bottom: 8 }, { top: 12, bottom: 8 },
+            ].map(ts => {
+              const active = timeSig.top === ts.top && timeSig.bottom === ts.bottom;
+              return (
+                <button key={`${ts.top}/${ts.bottom}`}
+                  className={`m-btn ${active ? "active" : ""}`}
+                  onClick={() => {
+                    const newTs = { top: ts.top, bottom: ts.bottom };
+                    setTimeSig(newTs);
+                    setMeasures(prev => recalcMeasures(prev, newTs));
+                  }}>{ts.top}/{ts.bottom}</button>
+              );
+            })}
             <div className="m-sep" />
             <span style={{ fontSize: 12, color: "var(--text2)" }}>Key</span>
             <button onClick={() => shiftKey(-1)} disabled={!transposeRange.canShiftDown}
@@ -4700,6 +4970,10 @@ function MusicNotationEditor() {
           0%   { opacity: 0.25; }
           55%  { opacity: 1;    }
           100% { opacity: 1;    }
+        }
+        @keyframes editHintIn {
+          0%   { opacity: 0; transform: translate(-50%, -6px); }
+          100% { opacity: 1; transform: translate(-50%, 0);    }
         }
         .score-title {
           background: transparent; border: none; color: var(--text);
@@ -5183,29 +5457,36 @@ function MusicNotationEditor() {
       {!isMobile && !childLock && (
         <div style={{
           background: "var(--bg2)", borderBottom: "1px solid var(--border)",
-          padding: isTablet ? "4px 8px" : "8px 14px", display: "flex", alignItems: "flex-end",
+          padding: isTablet ? "4px 8px" : "8px 14px", display: "flex", alignItems: "flex-start",
           gap: isTablet ? 6 : 6,
           flexShrink: 0, flexWrap: "wrap", rowGap: isTablet ? 4 : 6,
         }}>
           <div>
             <div className="section-label">Tools</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button className={`dur-btn ${tool === "note" ? "active" : ""}`} onClick={() => setTool("note")}>
-                <span style={{ fontSize: 18 }}>✏️</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Note</span>
-              </button>
-              <button className={`dur-btn ${tool === "eraser" ? "active" : ""}`} onClick={() => setTool("eraser")}>
-                <span style={{ fontSize: 18 }}>🧹</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Erase</span>
-              </button>
-              <button className="dur-btn" onClick={undo} title="Undo (⌘Z)">
-                <span style={{ fontSize: 18 }}>↩️</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Undo</span>
-              </button>
-              <button className="dur-btn" onClick={redo} title="Redo (⌘⇧Z)">
-                <span style={{ fontSize: 18 }}>↪️</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Redo</span>
-              </button>
+            {/* Two rows: Note / Erase on top, Undo / Redo directly underneath
+                so the pair is visually grouped as the "tool + reverse-action"
+                cluster. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className={`dur-btn ${tool === "note" ? "active" : ""}`} onClick={() => setTool("note")}>
+                  <span style={{ fontSize: 18 }}>✏️</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Note</span>
+                </button>
+                <button className={`dur-btn ${tool === "eraser" ? "active" : ""}`} onClick={() => setTool("eraser")}>
+                  <span style={{ fontSize: 18 }}>🧹</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Erase</span>
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="dur-btn" onClick={undo} title="Undo (⌘Z)">
+                  <span style={{ fontSize: 18 }}>↩️</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Undo</span>
+                </button>
+                <button className="dur-btn" onClick={redo} title="Redo (⌘⇧Z)">
+                  <span style={{ fontSize: 18 }}>↪️</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Redo</span>
+                </button>
+              </div>
             </div>
           </div>
           <div style={{ width: 1, height: 35, background: "var(--border)" }} />
@@ -5237,70 +5518,88 @@ function MusicNotationEditor() {
           <div style={{ width: 1, height: 35, background: "var(--border)" }} />
           <div>
             <div className="section-label">Duration</div>
-            <div style={{ display: "flex", gap: 3 }}>
-              {NOTE_DURATIONS.map(d => (
-                <button key={d.id} className={`dur-btn ${selectedDuration === d.id ? "active" : ""}`}
-                  onClick={() => { setSelectedDuration(d.id); setIsDotted(false); setIsTriplet(false); }} title={d.name}>
-                  <DurationIcon type={d.id} size={24} />
-                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>{d.name}</span>
-                </button>
-              ))}
-              <button className={`dur-btn ${isDotted ? "active" : ""}`}
-                onClick={() => { setIsDotted(!isDotted); if (!isDotted) setIsTriplet(false); }}
-                title="Augmentation Dot (1.5x duration)"
-              >
-                <span style={{ fontSize: 10, lineHeight: "24px", fontWeight: 700, position: "relative", top: 10 }}>&#x2022;</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Dot</span>
-              </button>
-              <button className={`dur-btn ${isTriplet ? "active" : ""}`}
-                onClick={() => { setIsTriplet(!isTriplet); if (!isTriplet) setIsDotted(false); }}
-                title="Triplet (2/3 duration)"
-              >
-                <svg width={28} height={32} viewBox="0 0 40 44" style={{ display: "block" }}>
-                  <text x={20} y={10} textAnchor="middle" fontSize={13} fill="currentColor" fontWeight="600" fontFamily="serif">3</text>
-                  <line x1={11} y1={16} x2={35} y2={12} stroke="currentColor" strokeWidth={3.5} />
-                  <line x1={11} y1={16} x2={11} y2={37} stroke="currentColor" strokeWidth={1.2} />
-                  <line x1={23} y1={14} x2={23} y2={35} stroke="currentColor" strokeWidth={1.2} />
-                  <line x1={35} y1={12} x2={35} y2={33} stroke="currentColor" strokeWidth={1.2} />
-                  <ellipse cx={6} cy={38} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,6,38)" />
-                  <ellipse cx={18} cy={36} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,18,36)" />
-                  <ellipse cx={30} cy={34} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,30,34)" />
-                </svg>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Trip</span>
-              </button>
-              {(() => {
-                const selNote = selectedNote ? measures[selectedNote.measure]?.notes[selectedNote.note] : null;
-                const tieActive = !!selNote?.tie;
-                return (
-                  <button className={`dur-btn ${tieActive ? "active" : ""}`}
-                    onClick={() => {
-                      if (!selectedNote) return;
-                      setMeasures(prev => {
-                        const next = [...prev];
-                        const notes = [...next[selectedNote.measure].notes];
-                        notes[selectedNote.note] = { ...notes[selectedNote.note], tie: !notes[selectedNote.note].tie };
-                        next[selectedNote.measure] = { ...next[selectedNote.measure], notes };
-                        return next;
-                      });
-                    }}
-                    disabled={!selectedNote}
-                    title="Tie to next note — hold through both durations"
-                    style={{ opacity: selectedNote ? 1 : 0.35, cursor: selectedNote ? "pointer" : "not-allowed" }}
-                  >
-                    <svg width={28} height={20} viewBox="0 0 40 24" style={{ display: "block" }}>
-                      <path d="M 4 14 Q 20 2 36 14" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" />
-                    </svg>
-                    <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Tie</span>
+            {/* Row 1: Whole/Half/Quarter/8th/16th/32nd.
+                Row 2: Dot, Trip, Tie. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ display: "flex", gap: 3 }}>
+                {NOTE_DURATIONS.map(d => (
+                  <button key={d.id} className={`dur-btn ${selectedDuration === d.id ? "active" : ""}`}
+                    onClick={() => { setSelectedDuration(d.id); setIsDotted(false); setIsTriplet(false); }} title={d.name}>
+                    <DurationIcon type={d.id} size={24} />
+                    <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>{d.name}</span>
                   </button>
-                );
-              })()}
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 3 }}>
+                <button className={`dur-btn ${isGraceNote ? "active" : ""}`}
+                  onClick={() => setIsGraceNote(!isGraceNote)}
+                  title="Grace note (acciaccatura) — small ornamental note"
+                >
+                  <svg width={28} height={32} viewBox="0 0 40 44" style={{ display: "block" }}>
+                    <ellipse cx={14} cy={26} rx={5} ry={3.6} fill="currentColor" transform="rotate(-20,14,26)" />
+                    <line x1={18} y1={24} x2={18} y2={8} stroke="currentColor" strokeWidth={1.4} />
+                    <path d="M 18 8 Q 24 10 26 14" fill="none" stroke="currentColor" strokeWidth={1.4} />
+                    <line x1={10} y1={32} x2={24} y2={20} stroke="currentColor" strokeWidth={1.2} />
+                  </svg>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Grace</span>
+                </button>
+                <button className={`dur-btn ${isDotted ? "active" : ""}`}
+                  onClick={() => { setIsDotted(!isDotted); if (!isDotted) setIsTriplet(false); }}
+                  title="Augmentation Dot (1.5x duration)"
+                >
+                  <span style={{ fontSize: 10, lineHeight: "24px", fontWeight: 700, position: "relative", top: 10 }}>&#x2022;</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Dot</span>
+                </button>
+                <button className={`dur-btn ${isTriplet ? "active" : ""}`}
+                  onClick={() => { setIsTriplet(!isTriplet); if (!isTriplet) setIsDotted(false); }}
+                  title="Triplet (2/3 duration)"
+                >
+                  <svg width={28} height={32} viewBox="0 0 40 44" style={{ display: "block" }}>
+                    <text x={20} y={10} textAnchor="middle" fontSize={13} fill="currentColor" fontWeight="600" fontFamily="serif">3</text>
+                    <line x1={11} y1={16} x2={35} y2={12} stroke="currentColor" strokeWidth={3.5} />
+                    <line x1={11} y1={16} x2={11} y2={37} stroke="currentColor" strokeWidth={1.2} />
+                    <line x1={23} y1={14} x2={23} y2={35} stroke="currentColor" strokeWidth={1.2} />
+                    <line x1={35} y1={12} x2={35} y2={33} stroke="currentColor" strokeWidth={1.2} />
+                    <ellipse cx={6} cy={38} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,6,38)" />
+                    <ellipse cx={18} cy={36} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,18,36)" />
+                    <ellipse cx={30} cy={34} rx={5} ry={3.8} fill="currentColor" transform="rotate(-20,30,34)" />
+                  </svg>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Trip</span>
+                </button>
+                {(() => {
+                  const selNote = selectedNote ? measures[selectedNote.measure]?.notes[selectedNote.note] : null;
+                  const tieActive = !!selNote?.tie;
+                  return (
+                    <button className={`dur-btn ${tieActive ? "active" : ""}`}
+                      onClick={() => {
+                        if (!selectedNote) return;
+                        setMeasures(prev => {
+                          const next = [...prev];
+                          const notes = [...next[selectedNote.measure].notes];
+                          notes[selectedNote.note] = { ...notes[selectedNote.note], tie: !notes[selectedNote.note].tie };
+                          next[selectedNote.measure] = { ...next[selectedNote.measure], notes };
+                          return next;
+                        });
+                      }}
+                      disabled={!selectedNote}
+                      title="Tie to next note — hold through both durations"
+                      style={{ opacity: selectedNote ? 1 : 0.35, cursor: selectedNote ? "pointer" : "not-allowed" }}
+                    >
+                      <svg width={28} height={20} viewBox="0 0 40 24" style={{ display: "block" }}>
+                        <path d="M 4 14 Q 20 2 36 14" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" />
+                      </svg>
+                      <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Tie</span>
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           <div style={{ width: 1, height: 40, background: "var(--border)" }} />
           <div>
             <div className="section-label">Rest</div>
             <div style={{ display: "flex", gap: 3 }}>
-              {NOTE_DURATIONS.map(d => (
+              {NOTE_DURATIONS.filter(d => d.id !== "thirty-second").map(d => (
                 <button key={d.id}
                   className={`dur-btn ${isRestMode && selectedDuration === d.id ? "active" : ""}`}
                   onClick={() => {
@@ -5348,16 +5647,25 @@ function MusicNotationEditor() {
           <div style={{ width: 1, height: 40, background: "var(--border)" }} />
           <div>
             <div className="section-label">Time Sig</div>
-            <div style={{ display: "flex", gap: 3 }}>
-              <button className={`dur-btn ${timeSig.top === 4 ? "active" : ""}`}
-                onClick={() => setTimeSig({ top: 4, bottom: 4 })}
-                style={{ fontWeight: 600, fontSize: 13 }}>4/4</button>
-              <button className={`dur-btn ${timeSig.top === 3 ? "active" : ""}`}
-                onClick={() => setTimeSig({ top: 3, bottom: 4 })}
-                style={{ fontWeight: 600, fontSize: 13 }}>3/4</button>
-              <button className={`dur-btn ${timeSig.top === 2 ? "active" : ""}`}
-                onClick={() => setTimeSig({ top: 2, bottom: 4 })}
-                style={{ fontWeight: 600, fontSize: 13 }}>2/4</button>
+            <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: 220 }}>
+              {[
+                { top: 4, bottom: 4 }, { top: 3, bottom: 4 }, { top: 2, bottom: 4 },
+                { top: 2, bottom: 2 },
+                { top: 3, bottom: 8 }, { top: 6, bottom: 8 },
+                { top: 9, bottom: 8 }, { top: 12, bottom: 8 },
+              ].map(ts => {
+                const active = timeSig.top === ts.top && timeSig.bottom === ts.bottom;
+                return (
+                  <button key={`${ts.top}/${ts.bottom}`}
+                    className={`dur-btn ${active ? "active" : ""}`}
+                    onClick={() => {
+                      const newTs = { top: ts.top, bottom: ts.bottom };
+                      setTimeSig(newTs);
+                      setMeasures(prev => recalcMeasures(prev, newTs));
+                    }}
+                    style={{ fontWeight: 600, fontSize: 13 }}>{ts.top}/{ts.bottom}</button>
+                );
+              })}
             </div>
           </div>
           <div style={{ width: 1, height: 40, background: "var(--border)" }} />
@@ -5405,37 +5713,41 @@ function MusicNotationEditor() {
           <div style={{ width: 1, height: 40, background: "var(--border)" }} />
           <div>
             <div className="section-label">Measures</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button className="dur-btn" onClick={addMeasure}>
-                <span style={{ fontSize: 18 }}>➕</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Add</span>
-              </button>
-              <button className="dur-btn" onClick={removeMeasure}>
-                <span style={{ fontSize: 18 }}>➖</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Remove</span>
-              </button>
-              <button className="dur-btn" onClick={clearAll} style={{ color: "var(--danger)" }}>
-                <span style={{ fontSize: 18 }}>🗑️</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Clear</span>
-              </button>
-              <button className="dur-btn" onClick={() => {
-                const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
-                setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], repeatStart: !next[mi].repeatStart }; return next; });
-              }}>
-                <span style={{ fontSize: 14 }}>𝄆</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Start</span>
-              </button>
-              <button className="dur-btn" onClick={() => {
-                const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
-                setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], repeat: !next[mi].repeat }; return next; });
-              }}>
-                <span style={{ fontSize: 14 }}>𝄇</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>End</span>
-              </button>
-              <button className={`dur-btn ${measures[selectedNote ? selectedNote.measure : lastClickedMeasure] && measures[selectedNote ? selectedNote.measure : lastClickedMeasure].volta1Start ? "active" : ""}`} onClick={() => {
-                const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
-                setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], volta1Start: !next[mi].volta1Start }; return next; });
-              }}>
+            {/* Two rows: measure-ops + repeat bars on top, voltas on bottom. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="dur-btn" onClick={addMeasure}>
+                  <span style={{ fontSize: 18 }}>➕</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Add</span>
+                </button>
+                <button className="dur-btn" onClick={removeMeasure}>
+                  <span style={{ fontSize: 18 }}>➖</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Remove</span>
+                </button>
+                <button className="dur-btn" onClick={clearAll} style={{ color: "var(--danger)" }}>
+                  <span style={{ fontSize: 18 }}>🗑️</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Clear</span>
+                </button>
+                <button className="dur-btn" onClick={() => {
+                  const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
+                  setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], repeatStart: !next[mi].repeatStart }; return next; });
+                }}>
+                  <span style={{ fontSize: 14 }}>𝄆</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>Start</span>
+                </button>
+                <button className="dur-btn" onClick={() => {
+                  const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
+                  setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], repeat: !next[mi].repeat }; return next; });
+                }}>
+                  <span style={{ fontSize: 14 }}>𝄇</span>
+                  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>End</span>
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <button className={`dur-btn ${measures[selectedNote ? selectedNote.measure : lastClickedMeasure] && measures[selectedNote ? selectedNote.measure : lastClickedMeasure].volta1Start ? "active" : ""}`} onClick={() => {
+                  const mi = selectedNote ? selectedNote.measure : lastClickedMeasure;
+                  setMeasures(prev => { const next = [...prev]; next[mi] = { ...next[mi], volta1Start: !next[mi].volta1Start }; return next; });
+                }}>
                 <span style={{ fontSize: 10, fontWeight: 700 }}>1.⌐</span>
                 <span style={{ fontSize: 9, opacity: 0.7, fontFamily: "'DM Sans', sans-serif" }}>1st Open</span>
               </button>
@@ -5486,6 +5798,7 @@ function MusicNotationEditor() {
                   )}
                 </>;
               })()}
+              </div>
             </div>
           </div>
           <div style={{ flex: 1 }} />
@@ -5660,27 +5973,34 @@ function MusicNotationEditor() {
 
       {/* ═══ SCORE AREA ═══ */}
       <div style={{ position: "relative", ...(isWidescreen ? { height: tabletScoreH, flexShrink: 0 } : { flex: 1, minHeight: 0, overflow: "hidden" }) }}>
+      {/* Silent-refusal toast: tells the user WHY a click didn't add a note.
+          Positioned over the top of the score area so it's always visible. */}
+      {editHint && (
+        <div key={editHint.id} style={{
+          position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)",
+          background: "#78350f", color: "#fff", padding: "8px 16px",
+          borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.25)", zIndex: 50,
+          maxWidth: "90%", textAlign: "center", lineHeight: 1.3,
+          pointerEvents: "none",
+          animation: "editHintIn 0.2s ease-out",
+        }}>{editHint.text}</div>
+      )}
       <div ref={scoreAreaRef}
         onTouchStart={(isMobile || isTablet) ? handleMobilePinchStart : undefined}
         onTouchMove={(isMobile || isTablet) ? handleMobilePinchMove : undefined}
         onTouchEnd={(isMobile || isTablet) ? handleMobilePinchEnd : undefined}
         onScroll={isMobile ? (e) => {
-          // CSS-per-SVG-pixel on mobile = mobileScale × mobileZoom × staffScale
-          // (matches the viewBox stretch). The pinned header's translate
-          // depends on this being in SVG units; without staffScale the header
-          // drifted relative to the scrolling notes.
           const cssPerSvg = (mobileScale || 1) * (mobileZoom || 1) * (staffScale || 1);
           setMobileScrollX(e.target.scrollLeft / (cssPerSvg || 1));
         } : undefined}
         style={{
         width: "100%", height: "100%",
-        // Mobile needs overflow:auto unconditionally — the SVG content is
-        // wider than the viewport (1.65× scale bump) and programmatic
-        // scrollLeft assignments from the playback rAF must actually scroll
-        // the notes. With overflow:hidden, onScroll would still fire for the
-        // pinned header's translate but the notes wouldn't move → clef drifts
-        // away from the staff.
-        overflow: isMobile ? "auto" : "hidden",
+        // Mobile: horizontal auto (SVG wider than viewport).
+        // Edit mode on widescreen: vertical auto so the taller SVG can
+        // scroll to reach ledger-line notes above + below the staff.
+        // Baby/play mode: hidden (view is static).
+        overflow: isMobile ? "auto" : (!childLock ? "auto" : "hidden"),
         WebkitOverflowScrolling: "touch",
         padding: isMobile ? "2px 0" : "0",
         background: "var(--bg)",
@@ -5689,8 +6009,21 @@ function MusicNotationEditor() {
       }}>
         <svg ref={svgRef}
           width={isMobile ? totalWidth * mobileScale * mobileZoom : "100%"}
-          height={isMobile ? mobileViewH * mobileScale * mobileZoom : tabletScoreH}
-          viewBox={isMobile ? `0 ${STAFF_TOP - 70} ${totalWidth / staffScale} ${mobileViewH / staffScale}` : `${tabletViewX} ${tabletViewTop + tabletViewYOffset} ${tabletViewW / staffScale / (isTablet ? (mobileZoom || 1) : 1)} ${tabletViewH / staffScale / (isTablet ? (mobileZoom || 1) : 1)}`}
+          height={isMobile
+            ? mobileViewH * mobileScale * mobileZoom
+            : (!childLock
+                // Edit mode: SVG is taller than the container so the user can
+                // scroll vertically to reach ledger-line notes above the
+                // treble (G5–C8) and below the bass (A1–B2) at FULL note size.
+                // Scale factor = editViewH / tabletViewH keeps the notes the
+                // same visual size as baby mode.
+                ? Math.round(tabletScoreH * (editViewH / tabletViewH))
+                : tabletScoreH)}
+          viewBox={isMobile
+            ? `0 ${STAFF_TOP - 70} ${totalWidth / staffScale} ${mobileViewH / staffScale}`
+            : (!childLock
+                ? `${tabletViewX} ${editViewTop} ${tabletViewW / staffScale / (isTablet ? (mobileZoom || 1) : 1)} ${editViewH / staffScale / (isTablet ? (mobileZoom || 1) : 1)}`
+                : `${tabletViewX} ${tabletViewTop + tabletViewYOffset} ${tabletViewW / staffScale / (isTablet ? (mobileZoom || 1) : 1)} ${tabletViewH / staffScale / (isTablet ? (mobileZoom || 1) : 1)}`)}
           preserveAspectRatio="none"
           style={{ display: "block", margin: "0 auto", touchAction: (isWidescreen && !draggingNote) ? "none" : (draggingNote ? "none" : "pan-x pan-y") }}
           onClick={handleStaffClick}
@@ -5741,8 +6074,8 @@ function MusicNotationEditor() {
                   const barBottom = clef === "grand" ? BASS_STAFF_TOP + 4 * LINE_SPACING : STAFF_TOP + 4 * LINE_SPACING;
                   return (
                     <g key={mi}>
-                      <rect className="measure-fill" x={mx} y={STAFF_TOP - 60}
-                        width={measureWidth} height={(clef === "grand" ? BASS_STAFF_TOP + 4 * LINE_SPACING - STAFF_TOP + 60 + 60 : LINE_SPACING * 4 + 120)} rx={4} />
+                      <rect className="measure-fill" x={mx} y={STAFF_TOP - 180}
+                        width={measureWidth} height={(clef === "grand" ? BASS_STAFF_TOP + 4 * LINE_SPACING - STAFF_TOP + 180 + 150 : LINE_SPACING * 4 + 320)} rx={4} />
                       {measure.repeatStart && (
                         <g>
                           {/* Extend staff lines to the thick barline */}
@@ -5837,7 +6170,15 @@ function MusicNotationEditor() {
                           cumBeats += dur;
                           return { ...nd, startBeat, dur };
                         });
-                        // Group beamable notes (eighth, sixteenth) within each beat
+                        // Group beamable notes (eighth, sixteenth) within each beat.
+                        // Pulse size depends on the time signature:
+                        //   2/2             → 2 quarter-beats (half-note pulse)
+                        //   6/8,9/8,12/8    → 1.5 quarter-beats (dotted-quarter pulse, group of 3 eighths)
+                        //   3/8             → 1.5 quarter-beats (whole measure = one group)
+                        //   4/4,3/4,2/4     → 1 quarter-beat
+                        const pulseQ = timeSig.bottom === 2 ? 2
+                                      : timeSig.bottom === 8 ? 1.5
+                                      : 1;
                         let currentGroup = [];
                         let currentBeatStart = 0;
                         noteBeats.forEach((nd, idx) => {
@@ -5845,7 +6186,8 @@ function MusicNotationEditor() {
                           // dotted-eighth + sixteenth pair (one beat) should
                           // look connected, not flagged separately.
                           const isBeamable = ((nd.note.duration === "eighth" || nd.note.duration === "sixteenth") && !nd.note.isRest) || (nd.note.triplet && !nd.note.isRest);
-                          const beatNum = Math.floor(nd.startBeat);
+                          // Pulse-based grouping — compound /8 gets groups of 3 eighths.
+                          const beatNum = Math.floor(nd.startBeat / pulseQ);
                           if (isBeamable) {
                             if (currentGroup.length === 0) {
                               currentGroup = [nd];
@@ -5918,8 +6260,16 @@ function MusicNotationEditor() {
                                   if (candStaff === noteStaffKey && !cand.note.isRest) { tieTarget = cand; break; }
                                 }
                               }
+                              // Grace note: draw at 0.6× scale centered on the
+                              // notehead via a matrix on the child <g>. Matrix
+                              // keeps the head anchored at (noteX, noteY) so
+                              // no surrounding layout (ties, beams, lyrics)
+                              // needs to shift.
+                              const graceTransform = note.grace
+                                ? `matrix(0.6 0 0 0.6 ${noteX * 0.4} ${noteY * 0.4})`
+                                : undefined;
                               return (
-                              <g key={note.id}>
+                              <g key={note.id} transform={graceTransform}>
                                 <NoteHead x={noteX} y={noteY}
                                   duration={note.duration} accidental={note.accidental}
                                   isRest={note.isRest}
@@ -5935,6 +6285,15 @@ function MusicNotationEditor() {
                                   onClick={(e) => handleNoteClick(mi, ni, e)}
                                   onMouseDown={(e) => handleNoteDragStart(mi, ni, e)}
                                   onTouchStart={(e) => handleNoteDragStart(mi, ni, e)} />
+                                {/* Acciaccatura slash: diagonal line above-
+                                    right of the notehead. Drawn inside the
+                                    same <g> so it inherits the 0.6× grace
+                                    scale. Appoggiaturas get no slash. */}
+                                {note.grace && note.graceType !== 'appoggiatura' && (
+                                  <line x1={noteX - NOTE_RX + 4} y1={noteY - NOTE_RX * 2.2}
+                                        x2={noteX + NOTE_RX + 10} y2={noteY - NOTE_RX * 3.4}
+                                        stroke="#000" strokeWidth={4} strokeLinecap="round" />
+                                )}
                                 {tieTarget && (() => {
                                   // Tapered tie as two TRUE circular arcs. Direction:
                                   //   - In a chord, the primary tie goes UP if primary is the
@@ -6120,6 +6479,22 @@ function MusicNotationEditor() {
                                     fill={note.isRest ? "#1a1a1a" : (selectedNote?.measure === mi && selectedNote?.note === ni ? "var(--select)" :
                                       "var(--note-color)")} />
                                 )}
+                                {/* Per-chord-member dots: music notation draws a dot next to
+                                    every chord note when the primary is dotted. Chord members
+                                    share the primary's duration so they're ALL dotted. */}
+                                {note.dotted && Array.isArray(note.chord) && note.chord.map((cn, ci) => {
+                                  const LETTER_ORD = { C:0, D:1, E:2, F:3, G:4, A:5, B:6 };
+                                  const primaryIdx = LETTER_ORD[note.name] + (note.octave || 0) * 7;
+                                  const cIdx = LETTER_ORD[cn.name] + (cn.octave || 0) * 7;
+                                  const cy = noteY + (primaryIdx - cIdx) * (LINE_SPACING / 2);
+                                  return (
+                                    <circle key={`cd-${ci}`}
+                                      cx={noteX + NOTE_RX + 18}
+                                      cy={cy - 3}
+                                      r={4}
+                                      fill="var(--note-color)" />
+                                  );
+                                })}
                                 {(() => {
                                   const isGrand = clef === "grand";
                                   const baseLyricY = isGrand
@@ -6629,7 +7004,7 @@ function MusicNotationEditor() {
               <text x={hoverNote.x} y={hoverNote.y - NOTE_RY - 10} textAnchor="middle"
                 fontSize={16} fontWeight="700" fill="var(--accent)" opacity={0.9}
                 fontFamily="'DM Sans', sans-serif"
-              >{hoverNote.name}{hoverNote.octave}</text>
+              >{hoverNote.name}{displayOctave(hoverNote.name, hoverNote.octave)}</text>
             </g>
           )}
         </svg>
@@ -6649,7 +7024,7 @@ function MusicNotationEditor() {
               if (n.isRest) return <span>Rest · {n.duration}</span>;
               return (
                 <>
-                  <span style={{ fontWeight: 600, fontSize: 16 }}>{n.name}{n.octave}</span>
+                  <span style={{ fontWeight: 600, fontSize: 16 }}>{n.name}{displayOctave(n.name, n.octave)}</span>
                   <span style={{ color: "var(--text2)" }}>·</span>
                   <span>{NOTE_DURATIONS.find(d => d.id === n.duration)?.name}{n.dotted ? " ●" : ""}</span>
                   {n.accidental !== "none" && (
@@ -6765,6 +7140,10 @@ function MusicNotationEditor() {
           // End at the highest note used
           endNote = maxNoteVal;
         }
+        // HARD RULE: keyboard shows ONLY the octaves used by the song's
+        // notes (auto-detected above). Hot Cross Buns (one octave) shows
+        // C4–C5. Happy Birthday grand staff (multi-octave) shows its full
+        // span. NO mode override — applies to baby AND edit.
         // Ensure at least one octave
         if (endNote - startNote < 7) endNote = startNote + 7;
         const allWhiteKeys = [];
@@ -6831,7 +7210,10 @@ function MusicNotationEditor() {
             // top; E/B only the left. Shift the letter by blackW/4 so it
             // sits in the middle of the visible (non-covered) top area.
             const letter = k.note.replace(/[0-9]/g, '');
-            const octave = k.note.match(/\d/)?.[0];
+            // Parse as number — the regex captures the octave digit as a
+            // string, and `octave + 1` below must do numeric addition
+            // (otherwise "4" + 1 = "41" instead of 5).
+            const octave = parseInt(k.note.match(/\d/)?.[0] || '4', 10);
             // Show octave number on every C (standard) AND on the very first
             // key (leftmost) so users see the keyboard's lower bound (A1).
             const showOctave = letter === "C" || i === 0;
@@ -6851,7 +7233,7 @@ function MusicNotationEditor() {
                 boxShadow: pressedPianoKeys[k.note] ? "0 0 20px rgba(255,255,255,0.8) inset, 0 0 15px rgba(255,255,255,0.6)" : "none",
                 animation: pressedPianoKeys[k.note] ? "pianoKeyFlash 0.14s ease-out" : "none",
               }}>
-              <span style={{ fontSize: whiteFontSize, fontWeight: 700, color: "#000", transform: `translateX(${letterShift}px)` }}>{letter}{showOctave && <sub style={{ fontSize: "0.55em" }}>{octave}</sub>}</span>
+              <span style={{ fontSize: whiteFontSize, fontWeight: 700, color: "#000", transform: `translateX(${letterShift}px)` }}>{letter}{showOctave && <sub style={{ fontSize: "0.55em" }}>{displayOctave(letter, octave)}</sub>}</span>
             </div>
             );
           })}
