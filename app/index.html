@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>Read &amp; Play Music</title>
   <link rel="icon" type="image/png" sizes="any" href="/icon.png">
@@ -49,6 +49,16 @@
     #rotate-overlay .rotate-text {
       font-size: 28px; font-weight: 600;
     }
+    /* Two messages: phones/tablets (touch) get "rotate your device",
+       desktops/laptops (mouse/trackpad) get "make your window wider" —
+       since you can't rotate a monitor. CSS picks the right one based on
+       the primary pointer type. */
+    #rotate-overlay .rotate-text-touch { display: block; }
+    #rotate-overlay .rotate-text-mouse { display: none; }
+    @media (pointer: fine) {
+      #rotate-overlay .rotate-text-touch { display: none; }
+      #rotate-overlay .rotate-text-mouse { display: block; }
+    }
     @media (orientation: portrait) {
       #rotate-overlay { display: flex; }
       #root { display: none; }
@@ -58,7 +68,8 @@
 <body>
   <div id="rotate-overlay">
     <div class="rotate-icon">&#x1F4F1;&#x21BB;</div>
-    <div class="rotate-text">Please rotate your device to landscape</div>
+    <div class="rotate-text rotate-text-touch">Please rotate your device to landscape</div>
+    <div class="rotate-text rotate-text-mouse">Please widen your window — R&amp;P Music needs more room to show the keys and staff</div>
   </div>
   <div id="root"></div>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
@@ -172,6 +183,10 @@ function getAppLang() {
 const APP_STRINGS = APP_T[getAppLang()];
 
 // ─── Constants ───────────────────────────────────────────────────────
+// Keep in sync with CACHE_VERSION in /sw.js. Shown in the top bar so we can
+// verify at a glance which build a PWA / browser is actually running.
+const APP_VERSION = 'v22';
+
 const STAFF_TOP = 60;
 const LINE_SPACING = 32;
 const STAFF_LEFT = 80;
@@ -756,19 +771,29 @@ function KeyChangeDisplay({ x, oldKey, newKey, bassClef }) {
   );
 }
 
-function KeySignatureDisplay({ x, keySigId, bassClef }) {
+// Rainbow fill used to illuminate a key-signature glyph whose letter is
+// currently being played (reminds the user it's a black-key sound).
+const KEY_SIG_RAINBOW = { C: "var(--c-color)", D: "var(--d-color)", E: "var(--e-color)", F: "var(--f-color)", G: "var(--g-color)", A: "var(--a-color)", B: "var(--b-color)" };
+
+function KeySignatureDisplay({ x, keySigId, bassClef, activeNoteIds }) {
   const ks = KEY_SIGNATURES.find(k => k.id === keySigId);
   if (!ks || (ks.sharps.length === 0 && ks.flats.length === 0)) return null;
   var sTop = bassClef ? BASS_STAFF_TOP : STAFF_TOP;
+  const noteIdOf = (letter) => activeNoteIds?.get(letter);
 
   const items = [];
   if (ks.sharps.length > 0) {
     ks.sharps.forEach((note, i) => {
       const pos = bassClef ? (SHARP_POSITIONS[note] + 1) : SHARP_POSITIONS[note];
       const y = sTop + pos * (LINE_SPACING / 2);
+      const noteId = noteIdOf(note);
+      const fill = noteId ? (KEY_SIG_RAINBOW[note] || "var(--line-color)") : "var(--line-color)";
+      // key includes the active noteId so consecutive same-letter notes
+      // remount the glyph → ks-pulse animation replays → visible blink.
       items.push(
-        <text key={`s${i}`} x={x + i * 36} y={y + 22}
-          fontSize={60} fontWeight="bold" fill="var(--line-color)"
+        <text key={`s${i}-${noteId || "off"}`} x={x + i * 36} y={y + 22}
+          fontSize={60} fontWeight="bold" fill={fill}
+          className={noteId ? "ks-pulse" : ""}
           textAnchor="middle">♯</text>
       );
     });
@@ -776,9 +801,12 @@ function KeySignatureDisplay({ x, keySigId, bassClef }) {
     ks.flats.forEach((note, i) => {
       const pos = bassClef ? (FLAT_POSITIONS[note] + 1) : FLAT_POSITIONS[note];
       const y = sTop + pos * (LINE_SPACING / 2);
+      const noteId = noteIdOf(note);
+      const fill = noteId ? (KEY_SIG_RAINBOW[note] || "var(--line-color)") : "var(--line-color)";
       items.push(
-        <text key={`f${i}`} x={x + i * 32} y={y + 14}
-          fontSize={60} fontWeight="bold" fill="var(--line-color)"
+        <text key={`f${i}-${noteId || "off"}`} x={x + i * 32} y={y + 14}
+          fontSize={60} fontWeight="bold" fill={fill}
+          className={noteId ? "ks-pulse" : ""}
           textAnchor="middle">♭</text>
       );
     });
@@ -1018,6 +1046,28 @@ function MusicNotationEditor() {
   const [playMode, setPlayMode] = useState(null); // null, "learn", or "practice"
   const playModeRef = useRef(null);
   useEffect(() => { playModeRef.current = playMode; }, [playMode]);
+  // Per-note tie destination map keyed by "measureIdx-noteIdx". A note is a
+  // "tie destination" when the previous same-staff note had `tie: true` — it
+  // continues the prior pitch without re-attack. Used by playback (already
+  // computed inline in playScore) and practice mode (silent advance).
+  const tieSkipAttackMap = useMemo(() => {
+    const map = new Map();
+    const lastTiedKey = { treble: null, bass: null };
+    for (let mi = 0; mi < measures.length; mi++) {
+      const mnotes = measures[mi].notes;
+      for (let ni = 0; ni < mnotes.length; ni++) {
+        const n = mnotes[ni];
+        const sk = n.staff === "bass" ? "bass" : "treble";
+        const key = `${mi}-${ni}`;
+        if (lastTiedKey[sk] && !n.isRest) {
+          map.set(key, true);
+          lastTiedKey[sk] = null;
+        }
+        if (n.tie && !n.isRest) lastTiedKey[sk] = key;
+      }
+    }
+    return map;
+  }, [measures]);
   // Practice mode: build sequence following repeats/voltas
   const practiceSequence = useMemo(() => {
     if (playMode !== "practice") return [];
@@ -1112,9 +1162,17 @@ function MusicNotationEditor() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    const handler = () => setIsFullscreen(
+      !!(document.fullscreenElement || document.webkitFullscreenElement)
+    );
     document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler);
+    // Also sync on mount in case we loaded while already in fullscreen.
+    handler();
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler);
+    };
   }, []);
 
   // Library is shown as a full-viewport iframe overlay. The main document
@@ -1129,28 +1187,24 @@ function MusicNotationEditor() {
   );
 
   const toggleFullscreen = useCallback(() => {
-    // Detect iOS (Safari or Chrome on iOS - both are WebKit without fullscreen API support)
-    const isIOS = typeof navigator !== 'undefined' && (
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-    );
-    // Check if fullscreen API is actually supported
-    const hasFullscreenAPI = typeof document !== 'undefined' && (
-      document.documentElement.requestFullscreen ||
-      document.documentElement.webkitRequestFullscreen ||
-      document.documentElement.mozRequestFullScreen
-    );
-    // Show hint if on mobile/iOS or if fullscreen API is unavailable (and not already standalone)
-    if ((isMobile || isIOS || !hasFullscreenAPI) && !isStandalone) {
+    if (isStandalone) return; // already in standalone/home-screen mode
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    const fsElem = document.fullscreenElement || document.webkitFullscreenElement;
+    // Only show the "add to home screen" hint when the browser genuinely
+    // has no fullscreen API (iOS Safari — iPhone + iPad). Desktop browsers
+    // always go fullscreen; Android Chrome goes fullscreen directly.
+    if (!req) {
       setShowHomeScreenHint(true);
       return;
     }
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
+    if (fsElem) {
+      exit?.call(document)?.catch(() => {});
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      req.call(el)?.catch(() => {});
     }
-  }, [isMobile, isStandalone]);
+  }, [isStandalone]);
   const [lockTaps, setLockTaps] = useState(0);
   const lockTapTimer = useRef(null);
   const playStartTimeRef = useRef(null); // ms timestamp when playback started (after count-in)
@@ -1176,15 +1230,40 @@ function MusicNotationEditor() {
   const isPlayingRef = useRef(false);
   const [playingIdx, setPlayingIdx] = useState({ measure: -1, note: -1 });
   const [playingNotes, setPlayingNotes] = useState({}); // { "mi-ni": true } for all currently sounding notes
+  // Map of letter (A–G) → latest "mi-ni" note ID currently sounding that is
+  // affected by the key signature. The note ID is used as a React key on
+  // the ♯/♭ glyph so consecutive same-letter notes (e.g. E-E-E in Jingle
+  // Bells m1) each remount the glyph and replay the pulse animation — the
+  // user sees three visible blinks instead of one steady highlight.
+  // Excludes notes with an explicit natural accidental cancelling the key sig.
+  const activeKeySigNoteIds = useMemo(() => {
+    const map = new Map();
+    const keys = Object.keys(playingNotes);
+    if (!keys.length) return map;
+    const ks = KEY_SIGNATURES.find(k => k.id === keySig);
+    if (!ks || (ks.sharps.length === 0 && ks.flats.length === 0)) return map;
+    const affected = new Set([...(ks.sharps || []), ...(ks.flats || [])]);
+    for (const k of keys) {
+      const [mi, ni] = k.split('-').map(Number);
+      const n = measures[mi]?.notes[ni];
+      if (!n || n.isRest) continue;
+      if (n.accidental === 'natural') continue;
+      if (affected.has(n.name)) map.set(n.name, k);
+    }
+    return map;
+  }, [playingNotes, measures, keySig]);
   const [selectedNote, setSelectedNote] = useState(null);
   const [lastClickedMeasure, setLastClickedMeasure] = useState(0);
   const [selectedNotes, setSelectedNotes] = useState([]); // multi-select for copy
   const clipboardRef = useRef([]);
   const [tool, setTool] = useState("note");
   const [title, setTitle] = useState("Untitled Score");
-  // Measure width: 1.5× the base so notes have visible breathing room in
-  // every song (applied globally, not just sixteenth rainbows).
-  const measureWidth = BASE_MEASURE_WIDTH * 1.5;
+  // Measure width: 1.5× the base on tablet/desktop so notes have breathing
+  // room, but only 1.0× on phones — noteheads are a fixed SVG size
+  // (NOTE_RX = 20) so shrinking the measure just brings notes closer
+  // together horizontally without scaling the notes themselves. Lets more
+  // of the song fit on a phone screen without changing pedagogy or legibility.
+  const measureWidth = BASE_MEASURE_WIDTH * (isMobile ? 0.65 : 1.5);
   const [composer, setComposer] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [mobileTab, setMobileTab] = useState("note");
@@ -1314,6 +1393,20 @@ function MusicNotationEditor() {
   const [hoverNote, setHoverNote] = useState(null); // { x, y, name, octave }
   const [draggingNote, setDraggingNote] = useState(null); // { measure, note }
   const [pressedPianoKeys, setPressedPianoKeys] = useState({});
+  // Per-piano-key counter incremented every time a new note starts on that key.
+  // Used as part of the React key on the piano-key DOM element so consecutive
+  // same-pitch notes (e.g. E4-E4-E4 in Jingle Bells m1) remount the key,
+  // replaying the press animation and producing 3 visible blinks instead of
+  // a single steady highlight.
+  const [pianoKeyPulse, setPianoKeyPulse] = useState({});
+  const bumpPianoKeyPulse = useCallback((keys) => {
+    if (!keys || !keys.length) return;
+    setPianoKeyPulse(prev => {
+      const next = { ...prev };
+      for (const k of keys) next[k] = (next[k] || 0) + 1;
+      return next;
+    });
+  }, []);
   const noteColorMap = { C: "var(--c-color)", D: "var(--d-color)", E: "var(--e-color)", F: "var(--f-color)", G: "var(--g-color)", A: "var(--a-color)", B: "var(--b-color)" };
   // Black keys sit between two white keys — when pressed, fade the two
   // neighboring white-key colors across the key (left neighbor → right
@@ -1362,11 +1455,15 @@ function MusicNotationEditor() {
           const eff = effectiveKeySig(measures, pos.measure, keySig);
           const expectedKey = pitchToPianoKey(expectedNote.name, expectedNote.octave, expectedNote.accidental, eff);
           if (noteName === expectedKey) {
-            // Correct! Play sound, light up and advance
-            if (pianoLoadedRef.current) {
+            // Correct! A tied-to note is held over from the previous press,
+            // so pressing it again is musically correct but produces no
+            // new attack — light up + advance without sound.
+            const isTieDest = tieSkipAttackMap.get(`${pos.measure}-${pos.note}`);
+            if (!isTieDest && pianoLoadedRef.current) {
               pianoSynthRef.current.triggerAttackRelease(noteName, "2n");
             }
             setPressedPianoKeys(prev => ({ ...prev, [noteName]: noteColorMap[baseNote] || "#fff" }));
+            bumpPianoKeyPulse([noteName]);
             setTimeout(() => { setPressedPianoKeys(prev => { const next = { ...prev }; delete next[noteName]; return next; }); }, 300);
             // Advance to next note in practice sequence
             const nextIdx = practiceIdx + 1;
@@ -1448,30 +1545,10 @@ function MusicNotationEditor() {
                   setTimeout(() => window.confetti({ particleCount: 120, spread: 70, origin: { x: 0.85, y: 0.7 }, colors }), 450);
                 }
                 try {
-                  if (typeof Tone !== 'undefined') {
-                    const t = Tone.now();
-                    // Bell-sparkle: warm triangle waves, gentle arpeggio.
-                    const sparkle = new Tone.PolySynth(Tone.Synth, {
-                      oscillator: { type: 'triangle' },
-                      envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 1.2 },
-                    }).toDestination();
-                    sparkle.volume.value = -12;
-                    sparkle.triggerAttackRelease('C6', 0.25, t + 0.00);
-                    sparkle.triggerAttackRelease('E6', 0.25, t + 0.18);
-                    sparkle.triggerAttackRelease('G6', 0.30, t + 0.36);
-                    sparkle.triggerAttackRelease(['C6','E6','G6'], 0.8, t + 0.60);
-                    // Low timpani: opening hit + bigger boom on the chord bloom.
-                    const timpani = new Tone.MembraneSynth({
-                      pitchDecay: 0.08,
-                      octaves: 5,
-                      envelope: { attack: 0.001, decay: 0.6, sustain: 0, release: 1.2 },
-                    }).toDestination();
-                    timpani.volume.value = -4;
-                    timpani.triggerAttackRelease('C2', 0.35, t + 0.00);
-                    timpani.triggerAttackRelease('G2', 0.90, t + 0.60);
-                    setTimeout(() => { try { sparkle.dispose(); } catch(e){} }, 2500);
-                    setTimeout(() => { try { timpani.dispose(); } catch(e){} }, 2500);
-                  }
+                  // Play the celebration music (user-composed). One-shot.
+                  const audio = new Audio('/public/celebration.mp3');
+                  audio.volume = 0.9;
+                  audio.play().catch(() => { /* autoplay blocked or file missing */ });
                 } catch (e) { /* audio unavailable */ }
                 setTimeout(() => {
                   // Fireworks done — hide the message, exit practice mode,
@@ -1493,6 +1570,7 @@ function MusicNotationEditor() {
         pianoSynthRef.current.triggerAttackRelease(noteName, "2n");
       }
       setPressedPianoKeys(prev => ({ ...prev, [noteName]: noteColorMap[baseNote] || "#fff" }));
+      bumpPianoKeyPulse([noteName]);
       setTimeout(() => { setPressedPianoKeys(prev => { const next = { ...prev }; delete next[noteName]; return next; }); }, 200);
     } catch(e) {}
   }, [practicePos, practiceIdx, practiceSequence, measures]);
@@ -2862,6 +2940,12 @@ function MusicNotationEditor() {
   const getVW = () => (typeof window !== 'undefined' ? (window.visualViewport?.width || window.innerWidth) : 1024);
   const [viewportHeight, setViewportHeight] = useState(getVH);
   const [viewportWidth, setViewportWidth] = useState(getVW);
+  // Compact toolbar mode for narrow desktop windows (small laptops, older
+  // monitors at ~1024×768, Chrome windowed on a big display). Below this
+  // width the full-size toolbar doesn't fit and controls like the 🐢/🐇
+  // tempo slider get pushed off-screen. Phones stay on their own mobile
+  // layout (isMobile) — this only kicks in between phone and full desktop.
+  const isCompact = !isMobile && viewportWidth < 1100;
   useEffect(() => {
     const onResize = () => { setViewportHeight(getVH()); setViewportWidth(getVW()); };
     window.addEventListener("resize", onResize);
@@ -2876,7 +2960,9 @@ function MusicNotationEditor() {
   // Bump the base mobile scale by 65% so the staff + lyrics feel legible on
   // phones without touching the piano sizing below. Content may overflow the
   // available area slightly; pan/swipe still works if the user needs it.
-  const mobileScale = (mobileAvailableHeight / mobileViewH) * 1.65;
+  // Cap at 1.0 so PWA standalone mode (no URL bar → more vertical space)
+  // doesn't zoom up and push the end of measure 1 + its lyrics off-screen.
+  const mobileScale = Math.min(1.0, (mobileAvailableHeight / mobileViewH) * 1.65);
 
   // Tablet/Desktop layout: everything scales proportionally to fit the screen
   const isTablet = isTouchDevice && !isMobile;
@@ -3451,6 +3537,9 @@ function MusicNotationEditor() {
               for (const p of pitches) next[pianoKeyName(p)] = noteColorMap[p.name] || "#fff";
               return next;
             });
+            // Per-note pulse: force a blink even on consecutive same-pitch
+            // notes (E-E-E in Jingle Bells m1) by remounting the piano key.
+            bumpPianoKeyPulse(pitches.map(pianoKeyName));
           }
           // Rests are silent — they must NOT touch pressedPianoKeys. On grand
           // staff, a rest on one staff fires at the same instant as an actual
@@ -4376,6 +4465,26 @@ function MusicNotationEditor() {
           0%, 100% { transform: scale(1.08); }
           50%      { transform: scale(1.12); }
         }
+        /* Per-note pulse on a key-signature glyph. Replays each time its
+           React key changes, i.e. every time a new note of that letter
+           starts — so E-E-E in Jingle Bells m1 shows 3 visible blinks. */
+        .ks-pulse {
+          animation: ksPulse 0.18s ease-out;
+        }
+        @keyframes ksPulse {
+          0%   { opacity: 0.15; }
+          40%  { opacity: 1;    }
+          100% { opacity: 1;    }
+        }
+        /* Per-note piano-key pulse: same technique. The piano key's React
+           key includes pianoKeyPulse[note]; each note start increments it,
+           remounting the element and replaying this animation — so three
+           E4s during playback show three distinct flashes. */
+        @keyframes pianoKeyFlash {
+          0%   { opacity: 0.25; }
+          55%  { opacity: 1;    }
+          100% { opacity: 1;    }
+        }
         .score-title {
           background: transparent; border: none; color: var(--text);
           font-family: 'Comic Neue', cursive; font-size: 22px; font-weight: 700;
@@ -4431,14 +4540,19 @@ function MusicNotationEditor() {
       {/* ═══ TOP BAR ═══ */}
       <div style={{
         background: "var(--bg2)", borderBottom: "1px solid var(--border)",
-        padding: isMobile ? "2px 4px" : "8px 20px",
+        padding: isMobile ? "2px 4px" : isCompact ? "4px 10px" : "8px 20px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: isMobile ? 3 : 16, flexShrink: 0,
+        gap: isMobile ? 3 : isCompact ? 8 : 16, flexShrink: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 3 : 12, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 3 : isCompact ? 6 : 12, flexShrink: 0 }}>
           <img src="/icon.svg" alt="Read&PlayMusic" style={{
             width: isMobile ? 28 : 40, height: isMobile ? 28 : 40, borderRadius: 8, display: "block", flexShrink: 0,
           }} />
+          <span style={{
+            fontSize: isMobile ? 10 : 12, color: "var(--text2)", fontFamily: "monospace",
+            padding: "1px 5px", borderRadius: 4, background: "var(--bg3)", border: "1px solid var(--border)",
+            flexShrink: 0, lineHeight: 1.4,
+          }} title="App version (matches service-worker cache version)">{APP_VERSION}</span>
           <button onClick={() => {
             // Stop any in-flight playback before leaving — otherwise the song
             // keeps playing behind the library overlay / on the next page.
@@ -4449,30 +4563,38 @@ function MusicNotationEditor() {
             if (isJamsMode) { window.location.href = '/library'; return; }
             setLibraryOpen(true);
           }} style={{
-            height: isMobile ? 30 : 40, padding: isMobile ? "0 6px" : "0 10px", background: "var(--bg3)",
+            height: isMobile ? 30 : isCompact ? 32 : 40, padding: isMobile ? "0 6px" : "0 10px", background: "var(--bg3)",
             border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)",
             fontSize: 13, fontFamily: "inherit", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 4,
           }} title="Song Library"><span style={{ fontSize: isMobile ? 18 : 26 }}>📚</span> {!isMobile && <span style={{ fontSize: 26 }}>Library</span>}</button>
-          {childLock && <>
+          {childLock && (() => {
+            // Learn/Practice emoji fills the button with a fixed 3-px padding
+            // on every side (= 6 px total), so the glyph grows with the button
+            // but never overflows. Computed once per render from the current
+            // button size for the active breakpoint.
+            const modeBtnSize = isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40;
+            const modeBtnFont = modeBtnSize - 6;
+            return <>
             <button onClick={() => { if (isPlaying) { playTimeoutRef.current.forEach(clearTimeout); playTimeoutRef.current = []; setIsPlaying(false); isPlayingRef.current = false; setPlayingIdx({measure:-1,note:-1}); setPlayingNotes({}); setPressedPianoKeys({}); } setPlayMode(prev => prev === "learn" ? null : "learn"); }} style={{
-              height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+              height: modeBtnSize, width: modeBtnSize, padding: 0,
               background: playMode === "learn" ? "var(--accent)" : "var(--bg3)",
               border: playMode === "learn" ? "1px solid var(--accent)" : "1px solid var(--border)",
               borderRadius: 6, color: playMode === "learn" ? "#fff" : "var(--text)",
-              fontSize: isMobile ? 28 : 40, lineHeight: 1, fontFamily: "inherit", cursor: "pointer",
+              fontSize: modeBtnFont, lineHeight: 1, fontFamily: "inherit", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
             }} title="Learn">👀</button>
             <button onClick={() => { if (clef === "grand") return; if (isPlaying) { playTimeoutRef.current.forEach(clearTimeout); playTimeoutRef.current = []; setIsPlaying(false); isPlayingRef.current = false; setPlayingIdx({measure:-1,note:-1}); setPlayingNotes({}); setPressedPianoKeys({}); } setPlayMode(prev => prev === "practice" ? null : "practice"); }} disabled={clef === "grand"} style={{
-              height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+              height: modeBtnSize, width: modeBtnSize, padding: 0,
               background: playMode === "practice" ? "var(--accent)" : "var(--bg3)",
               border: playMode === "practice" ? "1px solid var(--accent)" : "1px solid var(--border)",
               borderRadius: 6, color: playMode === "practice" ? "#fff" : "var(--text)",
-              fontSize: isMobile ? 22 : 32, fontFamily: "inherit", cursor: clef === "grand" ? "not-allowed" : "pointer",
+              fontSize: modeBtnFont, lineHeight: 1, fontFamily: "inherit", cursor: clef === "grand" ? "not-allowed" : "pointer",
               opacity: clef === "grand" ? 0.4 : 1,
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
             }} title={clef === "grand" ? "Practice mode isn't available for grand staff" : "Practice"}>🏋️</button>
-          </>}
+          </>;
+          })()}
           {!childLock && <>
             <button onClick={() => {
               if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Start a new score anyway?")) return;
@@ -4546,19 +4668,23 @@ function MusicNotationEditor() {
             )}
           </>}
         </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 3 : 6, flexShrink: 0 }}>
-          {/* Song search — type first-word letters to jump to a song */}
-          <div style={{ position: "relative", flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 3 : 6, flexShrink: 1, minWidth: 0 }}>
+          {/* Song search — type first-word letters to jump to a song.
+              Its wrapper is the single flexible item in the right cluster
+              (flex: 1 with a minWidth floor of 48 = just the 🔍 glyph). As
+              the window narrows, the search shrinks continuously until it's
+              only the magnifying glass — never smaller than that. */}
+          <div style={{ position: "relative", flex: "1 1 180px", minWidth: isMobile ? 44 : 48, maxWidth: 180 }}>
             <input
               type="text"
               value={songSearchQuery}
               onChange={(e) => setSongSearchQuery(e.target.value)}
               placeholder={APP_STRINGS.findSong}
               style={{
-                height: isMobile ? 30 : 40,
-                width: isMobile ? 110 : 180,
-                padding: "0 12px",
+                height: isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40,
+                width: "100%",
+                padding: "0 8px",
                 background: "var(--bg3)",
                 border: "1px solid var(--border)",
                 borderRadius: 8,
@@ -4623,7 +4749,7 @@ function MusicNotationEditor() {
           </div>
           {/* Play button — right after the song search */}
           <button onClick={playMode === "practice" ? undefined : playScore} style={{
-            height: isMobile ? 30 : 40, minWidth: isMobile ? 30 : 60, padding: isMobile ? "0 6px" : "0 10px",
+            height: isMobile ? 30 : isCompact ? 32 : 40, minWidth: isMobile ? 30 : 60, padding: isMobile ? "0 6px" : "0 10px",
             background: playMode === "practice" ? "var(--bg4)" : (isPlaying ? "var(--danger)" : "var(--green)"),
             border: "none", borderRadius: 8, color: playMode === "practice" ? "var(--text2)" : "#fff", fontWeight: 600,
             fontSize: 14, fontFamily: "inherit", cursor: playMode === "practice" ? "not-allowed" : "pointer",
@@ -4635,7 +4761,7 @@ function MusicNotationEditor() {
           {/* Pause button */}
           {isPlaying && (
             <button onClick={pauseResume} style={{
-              height: isMobile ? 30 : 40, minWidth: isMobile ? 30 : 60, padding: isMobile ? "0 6px" : "0 10px",
+              height: isMobile ? 30 : isCompact ? 32 : 40, minWidth: isMobile ? 30 : 60, padding: isMobile ? "0 6px" : "0 10px",
               background: isPaused ? "var(--accent)" : "var(--bg3)",
               border: isPaused ? "none" : "1px solid var(--border)",
               borderRadius: 8, color: isPaused ? "#fff" : "var(--text)", fontWeight: 600,
@@ -4647,7 +4773,7 @@ function MusicNotationEditor() {
           )}
           {/* Loop button — disabled in practice mode (practice always ends at the last note) */}
           <button onClick={playMode === "practice" ? undefined : () => setIsLooping(prev => !prev)} style={{
-            height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+            height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 30 : isCompact ? 32 : 40, padding: 0,
             background: isLooping && playMode !== "practice" ? "var(--accent)" : "var(--bg3)",
             border: isLooping && playMode !== "practice" ? "1px solid var(--accent)" : "1px solid var(--border)",
             borderRadius: 8, color: isLooping && playMode !== "practice" ? "#fff" : "var(--text)",
@@ -4660,7 +4786,7 @@ function MusicNotationEditor() {
           {childLock && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} title="Transpose">
             <button onClick={() => shiftKey(-1)} disabled={!transposeRange.canShiftDown} style={{
-              height: isMobile ? 30 : 40, width: isMobile ? 24 : 32, padding: 0,
+              height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 24 : 32, padding: 0,
               background: "var(--bg3)", border: "1px solid var(--border)",
               borderRadius: 8, color: "var(--text)",
               fontSize: 14, fontFamily: "inherit",
@@ -4669,14 +4795,16 @@ function MusicNotationEditor() {
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }} title={transposeRange.canShiftDown ? "Transpose down a half step" : "Lowest note is already A1"}>◀</button>
             <div style={{
-              height: isMobile ? 30 : 40, minWidth: isMobile ? 40 : 52, padding: "0 8px",
+              height: isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40,
+              width: isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40,
+              padding: 0,
               background: "var(--bg3)", border: "1px solid var(--border)",
               borderRadius: 8, color: "var(--text)",
-              fontSize: isMobile ? 16 : 20, fontWeight: 700,
+              fontSize: isMobile ? 16 : isCompact ? 18 : isFullscreen ? 26 : 22, fontWeight: 700,
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }}>{KEY_LABEL[songKey] ?? songKey}</div>
             <button onClick={() => shiftKey(+1)} disabled={!transposeRange.canShiftUp} style={{
-              height: isMobile ? 30 : 40, width: isMobile ? 24 : 32, padding: 0,
+              height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 24 : 32, padding: 0,
               background: "var(--bg3)", border: "1px solid var(--border)",
               borderRadius: 8, color: "var(--text)",
               fontSize: 14, fontFamily: "inherit",
@@ -4704,16 +4832,24 @@ function MusicNotationEditor() {
               ))}
             </div>
           )}
+          {(() => {
+            // Same size + padding rule as Learn/Practice/Fullscreen: the
+            // metronome + drum mode buttons scale at every breakpoint
+            // (including fullscreen) and their inner icon/glyph scales with
+            // the button so padding stays visually constant.
+            const metroBtnSize = isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40;
+            const metroIconSize = metroBtnSize - 6;
+            return <>
           <button onClick={playMode === "practice" ? undefined : () => setMetronomeOn(prev => !prev)} style={{
-            height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+            height: metroBtnSize, width: metroBtnSize, padding: 0,
             background: metronomeOn && playMode !== "practice" ? "var(--accent)" : "var(--bg3)",
             border: metronomeOn && playMode !== "practice" ? "1px solid var(--accent)" : "1px solid var(--border)",
             borderRadius: 8, color: metronomeOn && playMode !== "practice" ? "#fff" : "var(--text)",
-            fontSize: 36, fontFamily: "inherit", cursor: playMode === "practice" ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            fontSize: metroIconSize, fontFamily: "inherit", cursor: playMode === "practice" ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
             opacity: playMode === "practice" ? 0.3 : 1,
           }} title="Metronome">
-            <svg viewBox="0 0 24 28" width={isMobile ? 20 : 26} height={isMobile ? 22 : 30}>
+            <svg viewBox="0 0 24 28" width={metroIconSize} height={metroIconSize}>
               <path d="M 4 25 L 8 3 L 16 3 L 20 25 Z" fill="#b45309" stroke="#78350f" strokeWidth="1.2"/>
               <rect x="10" y="7" width="4" height="15" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
               <circle cx="12" cy="5.5" r="1" fill="#78350f"/>
@@ -4723,27 +4859,29 @@ function MusicNotationEditor() {
             </svg>
           </button>
           <button onClick={playMode === "practice" ? undefined : () => setMetronomeMode(prev => prev === "click" ? "voice" : prev === "voice" ? "voice_eighth" : "click")} style={{
-            height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+            height: metroBtnSize, width: metroBtnSize, padding: 0,
             background: "var(--bg3)",
             border: "1px solid var(--border)",
             borderRadius: 8, color: "var(--text)",
-            fontSize: 24, fontFamily: "inherit", cursor: playMode === "practice" ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            fontSize: metroIconSize, lineHeight: 1, fontFamily: "inherit", cursor: playMode === "practice" ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
             fontWeight: 600,
             opacity: playMode === "practice" ? 0.3 : 1,
           }} title="Toggle metronome mode">
             {metronomeMode === "click" ? "🥁" : metronomeMode === "voice" ? "♩" : "♫"}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, opacity: playMode === "practice" ? 0.3 : 1 }}>
-            <span style={{ fontSize: 32 }}>🐢</span>
+            </>;
+          })()}
+          <div style={{ display: "flex", alignItems: "center", gap: isCompact ? 3 : 6, flexShrink: 0, opacity: playMode === "practice" ? 0.3 : 1 }}>
+            <span style={{ fontSize: isCompact ? 22 : 32 }}>🐢</span>
             <input type="range" min={20} max={500} value={bpm}
               disabled={playMode === "practice"}
               onInput={e => onBpmSliderChange(+e.target.value)}
               onChange={e => onBpmSliderChange(+e.target.value)}
-              style={{ width: isMobile ? 80 : 120, height: 8, cursor: playMode === "practice" ? "not-allowed" : "pointer", accentColor: "var(--accent)", touchAction: "none" }}
+              style={{ width: isMobile ? 80 : isCompact ? 80 : 120, height: 8, cursor: playMode === "practice" ? "not-allowed" : "pointer", accentColor: "var(--accent)", touchAction: "none" }}
             />
-            <span style={{ fontSize: 32 }}>🐇</span>
-            <span style={{ fontSize: 12, fontWeight: 600, minWidth: 28, textAlign: "center" }}>{bpm}</span>
+            <span style={{ fontSize: isCompact ? 22 : 32 }}>🐇</span>
+            <span style={{ fontSize: 12, fontWeight: 600, minWidth: isCompact ? 24 : 28, textAlign: "center" }}>{bpm}</span>
           </div>
           {/* Fullscreen button — baby mode only. Shown on all devices; on
               iOS/phones (no fullscreen API) the handler shows an
@@ -4751,7 +4889,14 @@ function MusicNotationEditor() {
               In standalone mode (launched from home-screen icon), the button
               flips to "Open in browser" — a PWA can't terminate itself, but
               we can hand the user off to a browser tab with the same URL. */}
-          {childLock && (
+          {childLock && (() => {
+            // Same size + padding rule as Learn/Practice: button scales at
+            // every breakpoint (incl. fullscreen), content scales with it so
+            // the padding around the text/icon stays visually constant.
+            const fsBtnSize = isMobile ? 30 : isCompact ? 32 : isFullscreen ? 48 : 40;
+            const fsBtnFont = Math.max(8, Math.round(fsBtnSize * 0.22)); // stacked "Full/screen" text
+            const fsIconSize = fsBtnSize - 6; // SVG for standalone "open in browser"
+            return (
             <button onClick={() => {
               if (isStandalone) {
                 window.open(window.location.href, '_blank');
@@ -4759,16 +4904,16 @@ function MusicNotationEditor() {
                 toggleFullscreen();
               }
             }} style={{
-              height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+              height: fsBtnSize, width: fsBtnSize, padding: 0,
               background: "var(--bg3)", border: "1px solid var(--border)",
               borderRadius: 8, color: "var(--text)",
-              fontSize: 9, fontWeight: 600, lineHeight: 1.05,
+              fontSize: fsBtnFont, fontWeight: 600, lineHeight: 1.05,
               fontFamily: "inherit", cursor: "pointer",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }} title={isStandalone ? "Open in browser (close this app manually)" : isFullscreen ? "Exit full screen" : "Enter full screen"}>
               {isStandalone
                 ? (
-                    <svg width={isMobile ? 18 : 22} height={isMobile ? 18 : 22} viewBox="0 0 24 24"
+                    <svg width={fsIconSize} height={fsIconSize} viewBox="0 0 24 24"
                       fill="none" stroke="currentColor" strokeWidth="2.2"
                       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       {/* Container box with a corner missing (top-right) */}
@@ -4782,7 +4927,8 @@ function MusicNotationEditor() {
                   ? (<><span>Exit</span><span>full</span><span>screen</span></>)
                   : (<><span>Full</span><span>screen</span></>)}
             </button>
-          )}
+            );
+          })()}
           {/* Lock button — visible only on the edit URL. Third safety layer:
               even if someone got past URL+password, closing the lock ends the
               session so they must re-enter the password to unlock again. */}
@@ -4799,7 +4945,7 @@ function MusicNotationEditor() {
               setChildLock(true);
             }
           }} style={{
-            width: isMobile ? 30 : 40, height: isMobile ? 30 : 40, padding: 0,
+            width: isMobile ? 30 : isCompact ? 32 : 40, height: isMobile ? 30 : isCompact ? 32 : 40, padding: 0,
             background: childLock ? "var(--danger)" : "var(--bg3)",
             border: childLock ? "1px solid var(--danger)" : "1px solid var(--border)",
             borderRadius: 8, color: childLock ? "#fff" : "var(--text)",
@@ -5165,7 +5311,7 @@ function MusicNotationEditor() {
               {hasProfile && (
               <div style={{ position: "relative" }}>
               <button onClick={() => setShowProfileMenu(v => !v)} style={{
-                height: isMobile ? 30 : 40,
+                height: isMobile ? 30 : isCompact ? 32 : 40,
                 padding: isMobile ? "0 10px" : "0 14px",
                 background: pColor, color: "#fff", border: "none", borderRadius: 20,
                 fontSize: isMobile ? 13 : 15, fontWeight: 700,
@@ -5219,7 +5365,7 @@ function MusicNotationEditor() {
               )}
               {!isJamsMode && (
                 <button onClick={() => { window.location.href = '/myownvibes'; }} style={{
-                  height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+                  height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 30 : isCompact ? 32 : 40, padding: 0,
                   background: "var(--bg3)", border: "1px solid var(--border)",
                   borderRadius: 6, color: "var(--text)",
                   fontSize: isMobile ? 18 : 22, lineHeight: 1, fontFamily: "inherit", cursor: "pointer",
@@ -5232,7 +5378,7 @@ function MusicNotationEditor() {
                     style={{ display: "none" }}
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) importMusicXML(f); e.target.value = ""; }} />
                   <button onClick={() => xmlImportInputRef.current?.click()} style={{
-                    height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+                    height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 30 : isCompact ? 32 : 40, padding: 0,
                     background: "var(--bg3)", border: "1px solid var(--border)",
                     borderRadius: 6, color: "var(--text)",
                     fontSize: isMobile ? 22 : 30, lineHeight: 1, fontFamily: "inherit", cursor: "pointer",
@@ -5257,7 +5403,7 @@ function MusicNotationEditor() {
                     ), title: "Grand staff" },
                   ].map(({ id, label, title }) => (
                     <button key={id} onClick={() => pickClef(id)} style={{
-                      height: isMobile ? 30 : 40, width: isMobile ? 30 : 40, padding: 0,
+                      height: isMobile ? 30 : isCompact ? 32 : 40, width: isMobile ? 30 : isCompact ? 32 : 40, padding: 0,
                       background: clef === id ? "var(--accent)" : "var(--bg3)",
                       border: clef === id ? "1px solid var(--accent)" : "1px solid var(--border)",
                       borderRadius: 6, color: clef === id ? "#fff" : "var(--text)",
@@ -5314,7 +5460,7 @@ function MusicNotationEditor() {
         // away from the staff.
         overflow: isMobile ? "auto" : "hidden",
         WebkitOverflowScrolling: "touch",
-        padding: isMobile ? "2px 4px 2px" : "0",
+        padding: isMobile ? "2px 0" : "0",
         background: "var(--bg)",
         border: "none", outline: "none",
         touchAction: isMobile ? "pan-x pan-y" : undefined,
@@ -6099,7 +6245,7 @@ function MusicNotationEditor() {
                       <text x={STAFF_LEFT + 6} y={BASS_STAFF_TOP + 3.5 * LINE_SPACING - 5}
                         fontSize={120} fill="var(--clef-color)" fontFamily="'Noto Music', 'Noto Serif', serif">{"\uD834\uDD22"}</text>
                       <g key={"bassks-" + pinnedKey} className="key-change-anim">
-                        <KeySignatureDisplay x={STAFF_LEFT + CLEF_WIDTH + 8} keySigId={pinnedKey} bassClef={true} />
+                        <KeySignatureDisplay x={STAFF_LEFT + CLEF_WIDTH + 8} keySigId={pinnedKey} bassClef={true} activeNoteIds={activeKeySigNoteIds} />
                       </g>
                       {row === 0 && (
                         <TimeSignature x={STAFF_LEFT + CLEF_WIDTH + keySigWidth + TIME_SIG_WIDTH / 3} top={timeSig.top} bottom={timeSig.bottom} bassClef={true} />
@@ -6112,7 +6258,7 @@ function MusicNotationEditor() {
                   {/* Treble key signature — updates dynamically during playback so
                       mid-song modulations show as the tracker crosses the barline. */}
                   <g key={"trebleks-" + pinnedKey} className="key-change-anim">
-                    <KeySignatureDisplay x={STAFF_LEFT + CLEF_WIDTH + 8} keySigId={pinnedKey} />
+                    <KeySignatureDisplay x={STAFF_LEFT + CLEF_WIDTH + 8} keySigId={pinnedKey} activeNoteIds={activeKeySigNoteIds} />
                   </g>
                   {/* Time signature (only on first row) */}
                   {row === 0 && (
@@ -6347,7 +6493,7 @@ function MusicNotationEditor() {
                               : (letter === "E" || letter === "B") ? blackW / 4
                               : 0;
             return (
-            <div key={k.note} onClick={() => playPianoNote(k.note)}
+            <div key={`${k.note}-${pianoKeyPulse[k.note] || 0}`} onClick={() => playPianoNote(k.note)}
               style={{
                 position: "absolute", left: k.left, top: 0,
                 width: whiteW, height: whiteKeyH, background: k.color,
@@ -6357,6 +6503,7 @@ function MusicNotationEditor() {
                 paddingTop: 4, transition: "all 0.1s",
                 filter: pressedPianoKeys[k.note] ? "brightness(1.8) saturate(1.5)" : "none",
                 boxShadow: pressedPianoKeys[k.note] ? "0 0 20px rgba(255,255,255,0.8) inset, 0 0 15px rgba(255,255,255,0.6)" : "none",
+                animation: pressedPianoKeys[k.note] ? "pianoKeyFlash 0.14s ease-out" : "none",
               }}>
               <span style={{ fontSize: whiteFontSize, fontWeight: 700, color: "#000", transform: `translateX(${letterShift}px)` }}>{letter}{showOctave && <sub style={{ fontSize: "0.55em" }}>{octave}</sub>}</span>
             </div>
@@ -6370,7 +6517,7 @@ function MusicNotationEditor() {
               ? (blackKeyGradient[label] || pressedPianoKeys[k.note])
               : "#1a1a1a";
             return (
-            <div key={k.note} onClick={() => playPianoNote(k.note)}
+            <div key={`${k.note}-${pianoKeyPulse[k.note] || 0}`} onClick={() => playPianoNote(k.note)}
               style={{
                 position: "absolute", left: k.left, top: 0,
                 width: blackW, height: blackH, background: bg,
@@ -6378,6 +6525,7 @@ function MusicNotationEditor() {
                 border: isPressed ? "2px solid #fff" : "1px solid #000", boxSizing: "border-box",
                 display: "flex", flexDirection: "column", justifyContent: "flex-start", alignItems: "center",
                 paddingTop: 3, transition: "background 0.1s",
+                animation: isPressed ? "pianoKeyFlash 0.14s ease-out" : "none",
               }}>
               <span style={{ fontSize: blackFontSize, fontWeight: 700, color: "#fff", textAlign: "center", lineHeight: 1.2, textShadow: "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000" }}>{(() => {
                 const n = k.note.replace(/[0-9]/g, '');
