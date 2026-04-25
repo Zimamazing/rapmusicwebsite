@@ -14,9 +14,6 @@
   <meta name="theme-color" content="#9B6BFF">
   <!-- Preconnect to CDNs so the browser starts TCP + TLS handshakes while
        parsing HTML, saving ~100–300 ms on the first request to each host. -->
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>
@@ -84,11 +81,11 @@
        Babel-standalone scans for <script type="text/babel"> tags on load, so
        it still compiles + runs the inline app code correctly — just after
        first paint instead of blocking it. Huge LCP win on slow connections. -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous" defer></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" crossorigin="anonymous" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous" defer></script>
+  <script src="vendor/react.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="vendor/react-dom.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="vendor/tone.min.js" crossorigin="anonymous" defer></script>
+  <script src="vendor/jszip.min.js" crossorigin="anonymous" defer></script>
+  <script src="vendor/confetti.browser.min.js" crossorigin="anonymous" defer></script>
   <script>
     // Server-side storage API
     window.noteforgeAPI = {
