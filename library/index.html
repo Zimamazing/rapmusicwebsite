@@ -773,7 +773,12 @@
       els.accountsBar.appendChild(btn);
     });
 
-    // Bottom row (above the song list): R&P Music category first, then All songs
+    // Bottom row (above the song list): R&P Music category first, then All songs.
+    // Each pill shows a song count so the user can see at a glance how
+    // many songs are in each category.
+    const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
+    const allCount = allSongs.length;
+
     const rpBtn = document.createElement('button');
     rpBtn.className = 'tab rpmusic' + (tab === 'rpmusic' ? ' active' : '');
     if (tab === 'rpmusic') rpBtn.style.background = 'var(--accent)';
@@ -786,10 +791,11 @@
     rpBrand.className = 'brand-logo';
     rpBrand.innerHTML = '<span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music';
     rpBtn.appendChild(rpBrand);
+    rpBtn.appendChild(document.createTextNode(' (' + rpCount + ')'));
     rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
     els.tabs.appendChild(rpBtn);
 
-    const allBtn = button('📚 ' + tr('tabAll'), 'tab all' + (tab === 'all' ? ' active' : ''));
+    const allBtn = button('📚 ' + tr('tabAll') + ' (' + allCount + ')', 'tab all' + (tab === 'all' ? ' active' : ''));
     if (tab === 'all') allBtn.style.background = 'var(--accent)';
     allBtn.onclick = () => { tab = 'all'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
     els.tabs.appendChild(allBtn);
