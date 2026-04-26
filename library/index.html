@@ -78,6 +78,15 @@
   .tab.add { background: var(--bg3); color: var(--text2); }
   .tab.delete { background: var(--bg3); color: var(--danger); border-color: var(--border); }
 
+  /* Phone-only — bigger tap targets. Public users said the tab pills
+     were too small to hit comfortably. Apple HIG says ≥44 pt; this
+     padding + font yields ~46 px tall. Tablet/desktop unchanged. */
+  @media (max-width: 600px) {
+    .tab { padding: 14px 22px; font-size: 17px; border-radius: 24px; }
+    .accounts-bar .tab { padding: 10px 18px; font-size: 15px; }
+    .tab.all { padding: 14px 24px; }
+  }
+
   .songs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
   .song {
     position: relative;
