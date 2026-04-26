@@ -79,9 +79,11 @@
   .tab.delete { background: var(--bg3); color: var(--danger); border-color: var(--border); }
 
   /* Phone-only — bigger tap targets. Public users said the tab pills
-     were too small to hit comfortably. Apple HIG says ≥44 pt; this
-     padding + font yields ~46 px tall. Tablet/desktop unchanged. */
-  @media (max-width: 600px) {
+     were too small to hit comfortably. Apple HIG says ≥44 pt.
+     Two-condition match: phone portrait (width < 600) OR phone
+     landscape (height < 500). iPad portrait (768×1024) and any
+     desktop fall outside both, so they keep the desktop sizing. */
+  @media (max-width: 600px), (max-height: 500px) {
     .tab { padding: 14px 22px; font-size: 17px; border-radius: 24px; }
     .accounts-bar .tab { padding: 10px 18px; font-size: 15px; }
     .tab.all { padding: 14px 24px; }
