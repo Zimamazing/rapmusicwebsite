@@ -216,6 +216,17 @@
   @media (max-width: 600px) {
     main { padding: 24px 0 60px; }
   }
+
+  /* Phone-only Add-to-Home-Screen nudge inside the sign-up modal.
+     Hidden on tablet/desktop (storage there is stable) and on
+     installed PWAs (user already did it). */
+  #installNudge { display: none; }
+  @media (max-width: 600px), (max-height: 500px) {
+    #installNudge { display: block; }
+  }
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    #installNudge { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -264,6 +275,24 @@
 <div id="addBackdrop" class="backdrop" hidden>
   <div class="modal" role="dialog" aria-label="Add person">
     <h2>❤️ <span data-i18n="modalTitle">Add an account</span></h2>
+    <!-- Phone-only nudge: warn the user that browser-stored accounts
+         are wiped when browsing data is cleared, and that adding the
+         app to the Home Screen first gives the account a separate,
+         persistent storage box. Hidden on tablet/desktop and when
+         already running in standalone (display-mode: standalone). -->
+    <div id="installNudge" style="
+      background:#fef3c7; border:1px solid #fbbf24; color:#78350f;
+      border-radius:10px; padding:10px 12px; font-size:12px;
+      font-weight:600; margin:8px 0 14px; line-height:1.45; text-align:left;
+    ">
+      ⚠️ <strong>Wait — save your account first!</strong>
+      <div style="font-weight:400; margin-top:4px;">
+        If you sign up here in the browser, your account <strong>will be deleted</strong> if you ever clear your browsing data, switch browsers, or move to a new phone.
+      </div>
+      <div style="font-weight:400; margin-top:6px;">
+        To keep it safe: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>, then sign up from the app icon. Your account will stick.
+      </div>
+    </div>
     <label for="nameInput"><span data-i18n="modalName">Name</span></label>
     <input id="nameInput" type="text" maxlength="24" autocomplete="off">
     <label for="passwordInput"><span data-i18n="modalPassword">Password</span> <span style="color:var(--text2);font-weight:400" data-i18n="modalPasswordHelp">(needed to delete this account)</span></label>
