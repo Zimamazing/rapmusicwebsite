@@ -17,9 +17,41 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>
+    // ?reset escape hatch — visit /keyboard?reset once to unregister
+    // any stuck service worker and wipe every Cache Storage entry,
+    // then bounce back to /keyboard. Used when a previous broken SW
+    // is hanging on a phone and a hard reload alone isn't enough.
+    (function () {
+      try {
+        var u = new URL(window.location.href);
+        if (!u.searchParams.has('reset')) return;
+        var done = function () {
+          u.searchParams.delete('reset');
+          window.location.replace(u.pathname + (u.search || '') + u.hash);
+        };
+        var jobs = [];
+        if ('serviceWorker' in navigator) {
+          jobs.push(
+            navigator.serviceWorker.getRegistrations()
+              .then(function (regs) { return Promise.all(regs.map(function (r) { return r.unregister(); })); })
+              .catch(function () {})
+          );
+        }
+        if (window.caches && caches.keys) {
+          jobs.push(
+            caches.keys()
+              .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+              .catch(function () {})
+          );
+        }
+        Promise.all(jobs).then(done, done);
+        // Halt normal boot while we clean — done() will reload the page.
+        document.documentElement.style.visibility = 'hidden';
+      } catch (e) { /* ignore */ }
+    })();
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((e) => console.log('SW reg failed:', e));
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (e) { console.log('SW reg failed:', e); });
       });
     }
   </script>
@@ -168,6 +200,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v224" defer></script>
+  <script src="/keyboard/app.js?v225" defer></script>
 </body>
 </html>
