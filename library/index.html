@@ -61,38 +61,26 @@
   h1 { font-size: clamp(32px, 5vw, 44px); font-weight: 800; letter-spacing: -0.01em; text-align: center; margin-bottom: 8px; font-family: inherit; }
   .subtitle { text-align: center; color: var(--text2); margin-bottom: 32px; }
 
-  /* Profile tabs */
-  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; align-items: center; justify-content: center; }
-  .accounts-bar { margin: 12px 0 0; justify-content: flex-start; gap: 6px; }
-  .accounts-bar .tab { padding: 6px 12px; font-size: 13px; }
+  /* Profile tabs — sized for thumb-friendly tap targets on phones
+     (~58 px tall, well past Apple's 44 pt floor). Same size on
+     desktop since the iframe-embedded phone view bypasses media
+     queries unreliably on iOS Safari. The bigger size reads fine on
+     a desktop browser too — the cards underneath are far bigger. */
+  .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; align-items: center; justify-content: center; }
+  .accounts-bar { margin: 12px 0 0; justify-content: flex-start; gap: 8px; }
+  .accounts-bar .tab { padding: 14px 20px; font-size: 17px; }
   .tab {
-    padding: 8px 14px; border-radius: 20px;
+    padding: 18px 26px; border-radius: 28px;
     border: 2px solid var(--border); background: var(--bg2);
-    color: var(--text2); font-size: 14px; font-weight: 600;
+    color: var(--text2); font-size: 20px; font-weight: 700;
     font-family: inherit;
     transition: transform 0.1s, box-shadow 0.1s;
   }
   .tab:hover { transform: translateY(-1px); }
   .tab.active { color: #fff; }
-  .tab.all { padding: 8px 16px; }
+  .tab.all { padding: 18px 28px; }
   .tab.add { background: var(--bg3); color: var(--text2); }
   .tab.delete { background: var(--bg3); color: var(--danger); border-color: var(--border); }
-
-  /* Phone-only — bigger tap targets. Public users said the tab pills
-     were too small to hit comfortably. Apple HIG says ≥44 pt; this
-     padding + font yields ~58 px tall (well past the floor) so the
-     change is visibly different at a glance.
-     Two-condition match: phone portrait (width < 600) OR phone
-     landscape (height < 500). iPad portrait (768×1024) and any
-     desktop fall outside both, so they keep the desktop sizing.
-     !important on each rule so a stylesheet collision (loaded inside
-     the keyboard app's library iframe with a parent-scoped sheet)
-     can't silently re-shrink them. */
-  @media (max-width: 600px), (max-height: 500px) {
-    .tab { padding: 18px 26px !important; font-size: 20px !important; border-radius: 28px !important; font-weight: 700 !important; }
-    .accounts-bar .tab { padding: 14px 20px !important; font-size: 17px !important; }
-    .tab.all { padding: 18px 28px !important; }
-  }
 
   .songs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
   .song {
