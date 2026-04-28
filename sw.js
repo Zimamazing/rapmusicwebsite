@@ -17,7 +17,7 @@
 //  - SAMPLES_CACHE is stable across releases. Holds the 2 MB of piano samples
 //    so we don't re-download them on every deploy (was making phone reloads
 //    feel slow). Bump SAMPLES_CACHE_VERSION only if a sample file changes.
-const CACHE_VERSION = 'rap-music-v237';
+const CACHE_VERSION = 'rap-music-v238';
 const SAMPLES_CACHE = 'rap-music-samples-v1';
 
 // IMPORTANT: every URL here must resolve WITHOUT a redirect. cache.add()
