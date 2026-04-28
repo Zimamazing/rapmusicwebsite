@@ -47,10 +47,25 @@
         Promise.all(jobs).then(done, done);
       } catch (e) { /* ignore */ }
     })();
+    // Service workers are DISABLED. Too many SW-related outages this
+    // afternoon (cached redirect responses blocking navigation, stuck
+    // installs returning broken HTML, Cloudflare's 4 h sw.js TTL making
+    // recovery slow). On every load, actively unregister any existing
+    // registrations + wipe Cache Storage so users with old SWs get
+    // cleaned up automatically without needing to clear browser data.
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((e) => console.log('SW reg failed:', e));
-      });
+      try {
+        navigator.serviceWorker.getRegistrations()
+          .then(function (regs) { regs.forEach(function (r) { r.unregister().catch(function () {}); }); })
+          .catch(function () {});
+      } catch (e) { /* ignore */ }
+    }
+    if (window.caches && caches.keys) {
+      try {
+        caches.keys()
+          .then(function (keys) { keys.forEach(function (k) { caches.delete(k).catch(function () {}); }); })
+          .catch(function () {});
+      } catch (e) { /* ignore */ }
     }
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -183,6 +198,6 @@
       },
     };
   </script>
-  <script src="app.js?v248" defer></script>
+  <script src="app.js?v250" defer></script>
 </body>
 </html>
