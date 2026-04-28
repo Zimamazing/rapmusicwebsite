@@ -45,8 +45,9 @@
           );
         }
         Promise.all(jobs).then(done, done);
-        // Halt normal boot while we clean — done() will reload the page.
-        document.documentElement.style.visibility = 'hidden';
+        // Don't hide the document — if the reset chain hangs for any
+        // reason, the user would see a permanently blank page. Let the
+        // splash render normally; the redirect will replace it.
       } catch (e) { /* ignore */ }
     })();
     if ('serviceWorker' in navigator) {
@@ -200,6 +201,6 @@
       },
     };
   </script>
-  <script src="app.js?v225" defer></script>
+  <script src="app.js?v226" defer></script>
 </body>
 </html>
