@@ -17,6 +17,36 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>
+    // ?reset escape hatch — visit /keyboard?reset (or any URL with
+    // ?reset) once to unregister every service worker and wipe every
+    // Cache Storage entry, then bounce to a clean URL. Used when a
+    // stuck SW or cached HTML is causing slow / broken loads.
+    (function () {
+      try {
+        var u = new URL(window.location.href);
+        if (!u.searchParams.has('reset')) return;
+        var done = function () {
+          u.searchParams.delete('reset');
+          window.location.replace(u.pathname + (u.search || '') + u.hash);
+        };
+        var jobs = [];
+        if ('serviceWorker' in navigator) {
+          jobs.push(
+            navigator.serviceWorker.getRegistrations()
+              .then(function (regs) { return Promise.all(regs.map(function (r) { return r.unregister(); })); })
+              .catch(function () {})
+          );
+        }
+        if (window.caches && caches.keys) {
+          jobs.push(
+            caches.keys()
+              .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+              .catch(function () {})
+          );
+        }
+        Promise.all(jobs).then(done, done);
+      } catch (e) { /* ignore */ }
+    })();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch((e) => console.log('SW reg failed:', e));
@@ -153,6 +183,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v246" defer></script>
+  <script src="/keyboard/app.js?v247" defer></script>
 </body>
 </html>
