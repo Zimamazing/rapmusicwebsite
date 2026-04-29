@@ -26,7 +26,7 @@
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
     --bg: #fffdf9; --bg2: #faf8f3; --bg3: #f0ece3;
     --text: #1a1a1a; --text2: #666; --border: #e5e5e5;
-    --accent: #3b82f6; --danger: #dc2626;
+    --accent: #bae6fd; --danger: #dc2626;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   [hidden] { display: none !important; }
@@ -77,7 +77,7 @@
     transition: transform 0.1s, box-shadow 0.1s;
   }
   .tab:hover { transform: translateY(-1px); }
-  .tab.active { color: #fff; }
+  .tab.active { color: var(--text); }
   .tab.all { padding: 18px 28px; }
   .tab.add { background: var(--bg3); color: var(--text2); }
   .tab.delete { background: var(--bg3); color: var(--danger); border-color: var(--border); }
@@ -95,7 +95,7 @@
   }
   .song .play {
     width: 48px; height: 48px; border-radius: 50%;
-    background: var(--accent); color: #fff;
+    background: var(--accent); color: var(--text);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; flex-shrink: 0; z-index: 1; pointer-events: none;
   }
@@ -128,7 +128,7 @@
     transition: transform 0.08s;
   }
   .action-btn:hover { transform: translateY(-1px); }
-  .action-btn.action-open { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .action-btn.action-open { background: var(--accent); color: var(--text); border-color: var(--accent); }
   .action-btn.action-publish { background: #16a34a; color: #fff; border-color: #16a34a; }
   .action-btn.action-publish.published { background: #f97316; color: #fff; border-color: #f97316; }
   .action-btn.action-delete { color: var(--danger); }
@@ -168,7 +168,7 @@
   .swatch.selected { border-color: var(--text); }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
   .btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 14px; font-weight: 600; }
-  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: var(--text); border-color: var(--accent); }
 
   /* Owner-only library enhancements */
   .search-bar { display: none; margin: 0 auto 20px; max-width: 420px; position: relative; }
@@ -191,7 +191,7 @@
     padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--bg2); color: var(--text2); font-size: 13px; font-weight: 600;
   }
-  .sort-bar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .sort-bar button.active { background: var(--accent); color: var(--text); border-color: var(--accent); }
   /* Recent is admin-only; hide it in baby mode. */
   .sort-bar button[data-sort="recent"] { display: none; }
   .admin-visible .sort-bar button[data-sort="recent"] { display: inline-block; }
@@ -207,7 +207,7 @@
   }
   .alpha-btn:hover:not(:disabled) { transform: translateY(-1px); }
   .alpha-btn:disabled { color: var(--text2); opacity: 0.3; cursor: default; }
-  .alpha-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .alpha-btn.active { background: var(--accent); color: var(--text); border-color: var(--accent); }
 
   footer { padding: 40px 0; text-align: center; color: var(--text2); font-size: 14px; border-top: 1px solid var(--border); }
   footer .credit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
@@ -679,12 +679,11 @@
   let profiles = readProfiles();
   let activeName = getActiveName();
   // "all" shows every published song; otherwise a profile name filters the list.
-  // Default tab: baby/public viewers ALWAYS land on the R&P Music category,
-  // regardless of which profile is active. Admins still get their usual
-  // "profile if set, else all songs" behavior.
+  // Default tab: All Songs for everyone (user 2026-04-29). Admins keep their
+  // profile-filter if a profile is active.
   let tab = isAdmin
     ? (activeName && profiles[activeName] ? activeName : 'all')
-    : 'rpmusic';
+    : 'all';
   let searchQuery = '';
   let sortBy = 'difficulty'; // 'title' | 'difficulty' | 'recent'
   let letterFilter = 'all';  // 'all' | 'A'..'Z' | '#' (non-alphabetic titles)
@@ -806,12 +805,19 @@
       els.accountsBar.appendChild(btn);
     });
 
-    // Bottom row (above the song list): R&P Music category first, then All songs.
+    // Bottom row (above the song list): All Songs first (LEFT), then R&P
+    // Music (RIGHT). User decision 2026-04-29.
     // Counts are shown ONLY on localhost — on the live site (readandplaymusic.app)
     // the counts are hidden because public visitors don't need to see them.
     const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
     const allCount = allSongs.length;
+
+    const allLabel = '📚 ' + tr('tabAll') + (showCounts ? ' (' + allCount + ')' : '');
+    const allBtn = button(allLabel, 'tab all' + (tab === 'all' ? ' active' : ''));
+    if (tab === 'all') allBtn.style.background = 'var(--accent)';
+    allBtn.onclick = () => { tab = 'all'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+    els.tabs.appendChild(allBtn);
 
     const rpBtn = document.createElement('button');
     rpBtn.className = 'tab rpmusic' + (tab === 'rpmusic' ? ' active' : '');
@@ -828,12 +834,6 @@
     if (showCounts) rpBtn.appendChild(document.createTextNode(' (' + rpCount + ')'));
     rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
     els.tabs.appendChild(rpBtn);
-
-    const allLabel = '📚 ' + tr('tabAll') + (showCounts ? ' (' + allCount + ')' : '');
-    const allBtn = button(allLabel, 'tab all' + (tab === 'all' ? ' active' : ''));
-    if (tab === 'all') allBtn.style.background = 'var(--accent)';
-    allBtn.onclick = () => { tab = 'all'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-    els.tabs.appendChild(allBtn);
   }
 
   function button(text, cls) {
