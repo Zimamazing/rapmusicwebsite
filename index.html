@@ -139,6 +139,11 @@
   .install-tip h2 { margin-bottom: 16px; }
   .install-tip p { color: var(--text2); max-width: 520px; margin: 0 auto 8px; }
   .install-title .launch-btn { font-size: 20px; padding: 8px 22px; }
+  /* Phone-only line break: keep "Click Launch to" on row 1, push the
+     "Read & Play Music" brand to row 2 so the launch pill sits comfortably
+     above the title on narrow screens. */
+  .phone-break { display: none; }
+  @media (max-width: 600px) { .phone-break { display: inline; } }
   .brand-text { font-family: 'Chicle', cursive; letter-spacing: 0.11em; }
   .amp { display: inline-block; margin: 0 -0.11em; }
   .hero h1 .amp { margin: 0 -0.08em; }
