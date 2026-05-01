@@ -834,6 +834,17 @@
     if (showCounts) rpBtn.appendChild(document.createTextNode(' (' + rpCount + ')'));
     rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
     els.tabs.appendChild(rpBtn);
+
+    // Admin-only: "Unpublished" pill — quick scan of songs not yet on
+    // the live site. Hidden in baby/public mode.
+    if (isAdmin) {
+      const unpubCount = allSongs.filter(s => !(s.published === true || s.published === 'true')).length;
+      const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
+      const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
+      if (tab === 'unpublished') unpubBtn.style.background = 'var(--accent)';
+      unpubBtn.onclick = () => { tab = 'unpublished'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+      els.tabs.appendChild(unpubBtn);
+    }
   }
 
   function button(text, cls) {
@@ -851,6 +862,8 @@
     let pool = allSongs.slice();
     if (tab === 'rpmusic') {
       pool = pool.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
+    } else if (tab === 'unpublished') {
+      pool = pool.filter(s => !(s.published === true || s.published === 'true'));
     } else if (tab !== 'all' && profiles[tab]) {
       const saved = new Set(profiles[tab].songs || []);
       pool = pool.filter(s => saved.has((s.title || '').trim()));
@@ -887,6 +900,8 @@
     let visible = allSongs.slice();
     if (tab === 'rpmusic') {
       visible = visible.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
+    } else if (tab === 'unpublished') {
+      visible = visible.filter(s => !(s.published === true || s.published === 'true'));
     } else if (tab !== 'all' && profiles[tab]) {
       const savedTitles = new Set(profiles[tab].songs || []);
       visible = visible.filter(s => savedTitles.has((s.title || '').trim()));
@@ -927,7 +942,9 @@
         ? (isAdmin && searchQuery ? `No songs match "${escape(searchQuery)}".` : escape(tr('emptyAll')))
         : tab === 'rpmusic'
           ? 'No <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span> songs yet.'
-          : escape(tr('emptyProfile', {name: tab}));
+          : tab === 'unpublished'
+            ? 'No unpublished songs.'
+            : escape(tr('emptyProfile', {name: tab}));
       return;
     }
     els.empty.hidden = true;
