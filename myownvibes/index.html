@@ -28,7 +28,13 @@
   <meta name="apple-mobile-web-app-title" content="Read&amp;Play">
   <meta name="application-name" content="Read&amp;Play">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Noto+Music&display=optional" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Noto+Music&display=optional" crossorigin="anonymous"></noscript>
+  <!-- UI fonts use display=optional to eliminate the swap-induced CLS we
+     saw in Clarity. Noto Music is intentionally split out below with
+     display=swap because its glyphs (clefs, rests, braces) render as
+     missing/box characters in fallback fonts — we'd rather wait for it
+     and accept the tiny swap. -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=optional" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=optional" crossorigin="anonymous"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" crossorigin="anonymous"></noscript>
   <!-- Combining diacritics (U+0300-036F) fallback — Google Fonts' default Noto
        Sans subsets omit most combining marks (e.g. the synalepha tie U+035C
        used in Spanish hymn lyrics like Himno Nacional). A text=-subsetted
@@ -153,6 +159,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v299" defer></script>
+  <script src="/keyboard/app.js?v300" defer></script>
 </body>
 </html>
