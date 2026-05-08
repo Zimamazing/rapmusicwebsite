@@ -1,18 +1,26 @@
 {
-  "name": "Read&PlayMusic",
+  "name": "Read & Play Music",
   "short_name": "R&P Music",
-  "description": "Music notation editor and player",
-  "start_url": "/",
+  "description": "Learn to read music by playing — colored notes, rainbow tracker, and songs from around the world. Free in your browser.",
+  "start_url": "/keyboard/",
+  "scope": "/",
   "display": "fullscreen",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#ffffff",
   "theme_color": "#9B6BFF",
+  "categories": ["education", "music", "kids"],
   "icons": [
     {
       "src": "/icon.png",
-      "sizes": "1024x1024",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon.svg",
