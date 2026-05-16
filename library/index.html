@@ -645,11 +645,43 @@
   // expose search / sort / status badges.
   const isAdmin = window.__RPM_LIBRARY_ADMIN__ === true;
   if (isAdmin) document.body.classList.add('admin-visible');
+
+  // Per-instrument library mode. ?instrument=<name> filters this page to the
+  // songs belonging to that instrument. Default = 'keyboard'. Songs without
+  // an `instrument` field are treated as keyboard songs (all existing songs
+  // were authored on the keyboard). Each instrument has its OWN library —
+  // drum songs never appear in the keyboard library, and vice versa.
+  const KNOWN_INSTRUMENTS = new Set([
+    'keyboard','drums','guitar','ukulele','violin','viola','cello',
+    'bass-guitar','mandolin','banjo','flute','recorder','trumpet','saxophone',
+  ]);
+  const instrumentParam = (new URLSearchParams(window.location.search).get('instrument') || '').toLowerCase();
+  const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
+  const songBelongsToInstrument = (s) => {
+    const tag = (s && typeof s.instrument === 'string') ? s.instrument.toLowerCase() : '';
+    if (instrument === 'drums') {
+      return tag === 'drums' || s.clef === 'drum' || s.clef === 'percussion';
+    }
+    if (instrument === 'keyboard') {
+      // Keyboard library = anything tagged keyboard OR untagged (legacy),
+      // but NEVER drum songs (clef-based fallback keeps them out even if
+      // a drum song slipped in without the instrument field).
+      if (s.clef === 'drum' || s.clef === 'percussion') return false;
+      return tag === '' || tag === 'keyboard';
+    }
+    return tag === instrument;
+  };
+
   // In admin mode, derive the edit URL prefix from the current path
   // (e.g. /<EDIT_PATH>/library → /<EDIT_PATH>). Song clicks open edit mode.
-  const editPrefix = isAdmin
+  // For non-keyboard instruments, append the instrument so songs open in the
+  // matching per-instrument edit/play page.
+  const _basePrefix = isAdmin
     ? window.location.pathname.replace(/\/library\/?$/, '')
-    : '/keyboard';
+    : '';
+  const editPrefix = instrument === 'keyboard'
+    ? (isAdmin ? _basePrefix : '/keyboard')
+    : (isAdmin ? (_basePrefix + '/' + instrument) : ('/' + instrument));
 
   // --- Embed mode ---
   // When the library is rendered inside the main app's iframe overlay,
@@ -855,7 +887,9 @@
     // are localhost-only (hidden on the deployed site) so the live library
     // stays flat. Clicking the pill filters the song list to that folder.
     // Empty folder → click shows the empty-state message but pill stays.
-    if (/^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname) || /\.local$/i.test(location.hostname)) {
+    // MA Lesson is keyboard-only (piano-method book), so the pill is
+    // suppressed on every other instrument's library.
+    if (instrument === 'keyboard' && (/^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname) || /\.local$/i.test(location.hostname))) {
       const FOLDERS = [
         { dir: 'Michael Aaron Lessons Book 1', label: 'MA Lesson 1' },
       ];
@@ -1215,7 +1249,10 @@
       const endpoint = isAdmin ? '/api/songs' : '/api/published';
       const res = await fetch(endpoint, { credentials: 'include' });
       const songs = await res.json();
-      allSongs = Array.isArray(songs) ? songs : [];
+      const raw = Array.isArray(songs) ? songs : [];
+      // Each instrument has its own library. Filter at load so all the
+      // downstream tab / letter / search logic operates on the right pool.
+      allSongs = raw.filter(songBelongsToInstrument);
     } catch (e) {
       allSongs = [];
     }
