@@ -1,4 +1,4 @@
-// EMERGENCY KILL-SWITCH SERVICE WORKER (2026-04-27, third deployment)
+// EMERGENCY KILL-SWITCH SERVICE WORKER (2026-04-27, third deployment) — v335
 //
 // Phones / browsers got stuck behind cached HTML or a broken SW
 // payload and /keyboard would render a white screen even after a
