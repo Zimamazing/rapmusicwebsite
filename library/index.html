@@ -131,6 +131,7 @@
   .action-btn.action-open { background: var(--accent); color: var(--text); border-color: var(--accent); }
   .action-btn.action-publish { background: #16a34a; color: #fff; border-color: #16a34a; }
   .action-btn.action-publish.published { background: #f97316; color: #fff; border-color: #f97316; }
+  .action-btn.action-publish-live { background: #dc2626; color: #fff; border-color: #dc2626; font-weight: 700; }
   .action-btn.action-delete { color: var(--danger); }
 
   .empty { text-align: center; padding: 80px 20px; color: var(--text2); }
@@ -655,7 +656,14 @@
     'keyboard','drums','guitar','ukulele','violin','viola','cello',
     'bass-guitar','mandolin','banjo','flute','recorder','trumpet','saxophone',
   ]);
-  const instrumentParam = (new URLSearchParams(window.location.search).get('instrument') || '').toLowerCase();
+  // Instrument can come from query (?instrument=drums) OR from the URL path
+  // (/drumslibrary → 'drums', /keyboardlibrary → 'keyboard', etc.).
+  const _queryInstrument = (new URLSearchParams(window.location.search).get('instrument') || '').toLowerCase();
+  const _pathMatch =
+    window.location.pathname.match(/^\/([a-z-]+)\/library\/?$/) ||
+    window.location.pathname.match(/^\/([a-z-]+)library\/?$/);
+  const _pathInstrument = _pathMatch ? _pathMatch[1].toLowerCase() : '';
+  const instrumentParam = _queryInstrument || _pathInstrument;
   const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
   const songBelongsToInstrument = (s) => {
     const tag = (s && typeof s.instrument === 'string') ? s.instrument.toLowerCase() : '';
@@ -1108,6 +1116,36 @@
         };
         actions.appendChild(pubBtn);
 
+        // 🚀 Publish Live — only shown for songs locally published. Owner-only
+        // path to deploy this song + entire working-dir to readandplaymusic.app.
+        if (isPub) {
+          const liveBtn = document.createElement('button');
+          liveBtn.className = 'action-btn action-publish-live';
+          liveBtn.textContent = '🚀 Publish Live';
+          liveBtn.title = 'Push to readandplaymusic.app (live site)';
+          liveBtn.onclick = async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (!confirm(`Push "${title}" + the entire local working directory to LIVE readandplaymusic.app?\n\nThis is irreversible until the next deploy.`)) return;
+            liveBtn.disabled = true;
+            liveBtn.textContent = '🚀 Pushing…';
+            try {
+              const resp = await fetch('/api/release-to-live', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: 'publish-live: ' + (title || '') })
+              });
+              if (!resp.ok) throw new Error(await resp.text());
+              liveBtn.textContent = '✅ Live in ~60s';
+              setTimeout(() => { liveBtn.disabled = false; liveBtn.textContent = '🚀 Publish Live'; }, 8000);
+            } catch (err) {
+              alert('Publish live failed: ' + (err.message || err));
+              liveBtn.disabled = false;
+              liveBtn.textContent = '🚀 Publish Live';
+            }
+          };
+          actions.appendChild(liveBtn);
+        }
+
         const delBtn = document.createElement('button');
         delBtn.className = 'action-btn action-delete';
         delBtn.textContent = 'Delete';
@@ -1246,7 +1284,11 @@
   (async function () {
     try {
       // Admin uses /api/songs (all + published flag). Public uses /api/published.
-      const endpoint = isAdmin ? '/api/songs' : '/api/published';
+      // Localhost-only override: even in kid mode, fetch ALL songs so owner's
+      // local drafts (e.g. MA Lesson Book 1) appear without needing to publish.
+      // Live site behavior unchanged (IS_LOCALHOST is false on readandplaymusic.app).
+      const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname) || /\.local$/i.test(location.hostname);
+      const endpoint = (isAdmin || _isLocal) ? '/api/songs' : '/api/published';
       const res = await fetch(endpoint, { credentials: 'include' });
       const songs = await res.json();
       const raw = Array.isArray(songs) ? songs : [];
