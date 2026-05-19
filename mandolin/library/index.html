@@ -624,14 +624,13 @@
 
   document.documentElement.lang = lang;
   document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
-  // Title — show "Drum Library" / "Key Library" etc. based on URL instrument.
+  // Title — show "Drum Library" / "Keyboard Library" etc. based on URL instrument.
   // Falls back to the generic translated page title when no instrument in URL.
   (function setLibraryTitle() {
     const _m = window.location.pathname.match(/^\/([a-z-]+)(?:\/library|library)\/?$/);
     if (_m) {
       const _i = _m[1];
       const _lbl = _i === 'drums' ? 'Drum'
-        : _i === 'keyboard' ? 'Key'
         : _i.charAt(0).toUpperCase() + _i.slice(1).replace(/-/g, ' ');
       document.title = _lbl + ' Library';
     } else {
@@ -684,40 +683,6 @@
     if (!btn) return;
     if (!isAdmin) return;  // hidden by default; only show for admin
     btn.style.display = 'block';
-    // Inline login fallback — if /api/release-to-live returns 401 (no
-     // session cookie on this origin), prompt for the password right here
-     // and POST to /api/login. Same-tab login means we don't need to bounce
-     // through the React app's edit-page login form. Returns true on
-     // successful login, false on cancel/wrong-password.
-    async function ensureLoggedIn() {
-      const pw = window.prompt('Log in to deploy to live site.\n\nEnter password:');
-      if (pw == null || pw === '') return false;
-      try {
-        const r = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ password: pw }),
-        });
-        const j = await r.json().catch(() => ({}));
-        if (j.ok) return true;
-        alert('Wrong password.');
-        return false;
-      } catch (e) {
-        alert('Login error: ' + (e && e.message ? e.message : e));
-        return false;
-      }
-    }
-
-    async function postRelease() {
-      return fetch('/api/release-to-live', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ reason: 'manual site deploy from library' }),
-      });
-    }
-
     btn.addEventListener('click', async () => {
       const ok = window.confirm(
         'Ship the current localhost website (compiled index.html, all instrument modules, library page, server config) to readandplaymusic.app?\n\nThe public site updates in ~60 seconds.'
@@ -728,17 +693,16 @@
       const _orig = btn.textContent;
       btn.textContent = '⏳ Deploying…';
       try {
-        let res = await postRelease();
-        if (res.status === 401) {
-          // No session — prompt for password, log in, retry.
-          const loggedIn = await ensureLoggedIn();
-          if (!loggedIn) return;
-          res = await postRelease();
-        }
+        const res = await fetch('/api/release-to-live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ reason: 'manual site deploy from library' }),
+        });
         if (res.ok) {
           alert('🚀 Pushing to live — readandplaymusic.app updates in ~60 seconds.');
         } else if (res.status === 401) {
-          alert('Still unauthorized after login — server may have rejected the cookie. Try refreshing this page.');
+          alert('Unauthorized — log in first.');
         } else {
           const j = await res.json().catch(() => ({}));
           alert('Failed to push live: ' + (j.error || res.statusText));
@@ -1057,7 +1021,9 @@
     // the counts are hidden because public visitors don't need to see them.
     const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
-    const allCount = allSongs.length;
+    const allCount = allSongs.filter(s =>
+      (s.published === true || s.published === 'true') && !s.folder
+    ).length;
 
     const allLabel = '📚 ' + tr('tabAll') + (showCounts ? ' (' + allCount + ')' : '');
     const allBtn = button(allLabel, 'tab all' + (tab === 'all' ? ' active' : ''));
@@ -1158,6 +1124,10 @@
     } else if (tab !== 'all' && profiles[tab]) {
       const saved = new Set(profiles[tab].songs || []);
       pool = pool.filter(s => saved.has((s.title || '').trim()));
+    } else if (tab === 'all') {
+      pool = pool.filter(s =>
+        (s.published === true || s.published === 'true') && !s.folder
+      );
     }
     const letters = new Set();
     let hasNonAlpha = false;
@@ -1199,6 +1169,15 @@
     } else if (tab !== 'all' && profiles[tab]) {
       const savedTitles = new Set(profiles[tab].songs || []);
       visible = visible.filter(s => savedTitles.has((s.title || '').trim()));
+    } else if (tab === 'all') {
+      // Owner-requested: the localhost "All songs" list must show the
+      // exact same titles in the exact same order as the live site. Live
+      // serves only songs that are published AND not in a private folder,
+      // so apply that filter here. Unpublished + folder songs still show
+      // under their dedicated pills.
+      visible = visible.filter(s =>
+        (s.published === true || s.published === 'true') && !s.folder
+      );
     }
 
     // A-Z letter filter
@@ -1271,25 +1250,10 @@
       const titleEl = document.createElement('div');
       titleEl.className = 'title';
       titleEl.textContent = title || tr('untitled');
-      if (isAdmin) {
-        const badge = document.createElement('span');
-        const isPub = song.published === true || song.published === 'true';
-        badge.className = 'status-badge ' + (isPub ? 'published' : 'unpublished');
-        badge.textContent = isPub ? 'Published' : 'Unpublished';
-        titleEl.appendChild(badge);
-      }
-      // Folder pill — shows for songs grouped into a subdirectory of
-      // .published/ (dev-only folders that don't ship to the live site).
-      // Maps verbose folder names to a short pill label.
-      if (song.folder) {
-        const FOLDER_PILLS = {
-          'Michael Aaron Lessons Book 1': 'MA Lesson 1',
-        };
-        const pill = document.createElement('span');
-        pill.className = 'folder-pill';
-        pill.textContent = FOLDER_PILLS[song.folder] || song.folder;
-        titleEl.appendChild(pill);
-      }
+      // Owner asked for localhost song titles to render identically to the
+      // live site — no Published/Unpublished status badge, no folder pill.
+      // Status and folder are still surfaced via the top-level "Unpublished"
+      // / "MA Lesson 1" pills above the song list.
       const metaEl = document.createElement('div');
       metaEl.className = 'meta';
       const bits = [];
@@ -1520,6 +1484,38 @@
       // Each instrument has its own library. Filter at load so all the
       // downstream tab / letter / search logic operates on the right pool.
       allSongs = raw.filter(songBelongsToInstrument);
+
+      // On localhost in admin mode, also fetch /api/published (= the live
+      // site's source of truth). For each /api/songs entry that has a
+      // matching published copy, overwrite difficulty with the value from
+      // .published/ so the localhost "All songs" view sorts identically to
+      // the live site (difficulty is recomputed at publish time and frozen
+      // in .published/, so the root-file value can drift). Titles missing
+      // from /api/songs are appended so the "All songs" list matches live
+      // counts too.
+      if (isAdmin && _isLocal) {
+        try {
+          const pubRes = await fetch('/api/published', { credentials: 'include' });
+          const pub = await pubRes.json();
+          if (Array.isArray(pub)) {
+            const liveByTitle = new Map();
+            for (const ps of pub) liveByTitle.set((ps.title || '').trim(), ps);
+            for (const s of allSongs) {
+              const live = liveByTitle.get((s.title || '').trim());
+              if (live && typeof live.difficulty === 'number') {
+                s.difficulty = live.difficulty;
+              }
+            }
+            const localTitles = new Set(allSongs.map(s => (s.title || '').trim()));
+            for (const ps of pub) {
+              const t = (ps.title || '').trim();
+              if (!localTitles.has(t) && !ps.folder && songBelongsToInstrument(ps)) {
+                allSongs.push({ ...ps, _liveOnly: true });
+              }
+            }
+          }
+        } catch (e) { /* live-sync best-effort; ignore failure */ }
+      }
     } catch (e) {
       allSongs = [];
     }
