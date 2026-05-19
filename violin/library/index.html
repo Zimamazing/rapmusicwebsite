@@ -259,6 +259,21 @@
   <h1>📚 <span data-i18n="pageTitle">Song Library</span></h1>
   <p class="subtitle" id="subtitle" data-i18n="subtitle">Pick a song to play.</p>
 
+  <!-- Big rainbow site-deploy button. Owner-only (admin mode); hidden by
+       default, JS unhides it when window.__RPM_LIBRARY_ADMIN__ === true.
+       Clicking ships the current localhost working directory to
+       readandplaymusic.app via /api/release-to-live (which runs
+       scripts/release-to-public.sh). Per-song "Publish" buttons no longer
+       deploy the site — this is the SINGLE explicit deploy mechanism. -->
+  <button id="publishToPublicSiteBtn" type="button" style="display:none;
+    margin: 18px 0 24px; width: 100%; padding: 18px 24px;
+    border: none; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(90deg, #dc2626 0%, #f97316 18%, #facc15 35%, #22c55e 52%, #3b82f6 70%, #8b5cf6 86%, #ec4899 100%);
+    color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 0.6px;
+    font-family: 'DM Sans', sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  ">🚀 PUBLISH TO PUBLIC WEBSITE</button>
+
   <div class="search-bar">
     <input id="searchInput" type="text" placeholder="Search songs…" autocomplete="off">
   </div>
@@ -609,7 +624,20 @@
 
   document.documentElement.lang = lang;
   document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
-  document.title = tr('pageTitle') + " — R&P Music";
+  // Title — show "Drum Library" / "Key Library" etc. based on URL instrument.
+  // Falls back to the generic translated page title when no instrument in URL.
+  (function setLibraryTitle() {
+    const _m = window.location.pathname.match(/^\/([a-z-]+)(?:\/library|library)\/?$/);
+    if (_m) {
+      const _i = _m[1];
+      const _lbl = _i === 'drums' ? 'Drum'
+        : _i === 'keyboard' ? 'Key'
+        : _i.charAt(0).toUpperCase() + _i.slice(1).replace(/-/g, ' ');
+      document.title = _lbl + ' Library';
+    } else {
+      document.title = tr('pageTitle') + " — R&P Music";
+    }
+  })();
 
   // --- Storage (mirrors the in-app keys so accounts created here show up there and vice versa) ---
   function readProfiles() {
@@ -647,6 +675,84 @@
   const isAdmin = window.__RPM_LIBRARY_ADMIN__ === true;
   if (isAdmin) document.body.classList.add('admin-visible');
 
+  // Big rainbow site-deploy button. Owner-only — visible only in admin
+  // mode (the secret edit-path or per-instrument library URLs). One
+  // explicit click ships the current localhost working directory to
+  // readandplaymusic.app. No song selection required.
+  (function wirePublishToPublicSite() {
+    const btn = document.getElementById('publishToPublicSiteBtn');
+    if (!btn) return;
+    if (!isAdmin) return;  // hidden by default; only show for admin
+    btn.style.display = 'block';
+    // Inline login fallback — if /api/release-to-live returns 401 (no
+     // session cookie on this origin), prompt for the password right here
+     // and POST to /api/login. Same-tab login means we don't need to bounce
+     // through the React app's edit-page login form. Returns true on
+     // successful login, false on cancel/wrong-password.
+    async function ensureLoggedIn() {
+      const pw = window.prompt('Log in to deploy to live site.\n\nEnter password:');
+      if (pw == null || pw === '') return false;
+      try {
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ password: pw }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (j.ok) return true;
+        alert('Wrong password.');
+        return false;
+      } catch (e) {
+        alert('Login error: ' + (e && e.message ? e.message : e));
+        return false;
+      }
+    }
+
+    async function postRelease() {
+      return fetch('/api/release-to-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: 'manual site deploy from library' }),
+      });
+    }
+
+    btn.addEventListener('click', async () => {
+      const ok = window.confirm(
+        'Ship the current localhost website (compiled index.html, all instrument modules, library page, server config) to readandplaymusic.app?\n\nThe public site updates in ~60 seconds.'
+      );
+      if (!ok) return;
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      const _orig = btn.textContent;
+      btn.textContent = '⏳ Deploying…';
+      try {
+        let res = await postRelease();
+        if (res.status === 401) {
+          // No session — prompt for password, log in, retry.
+          const loggedIn = await ensureLoggedIn();
+          if (!loggedIn) return;
+          res = await postRelease();
+        }
+        if (res.ok) {
+          alert('🚀 Pushing to live — readandplaymusic.app updates in ~60 seconds.');
+        } else if (res.status === 401) {
+          alert('Still unauthorized after login — server may have rejected the cookie. Try refreshing this page.');
+        } else {
+          const j = await res.json().catch(() => ({}));
+          alert('Failed to push live: ' + (j.error || res.statusText));
+        }
+      } catch (e) {
+        alert('Connection error: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.textContent = _orig;
+      }
+    });
+  })();
+
   // Per-instrument library mode. ?instrument=<name> filters this page to the
   // songs belonging to that instrument. Default = 'keyboard'. Songs without
   // an `instrument` field are treated as keyboard songs (all existing songs
@@ -654,42 +760,123 @@
   // drum songs never appear in the keyboard library, and vice versa.
   const KNOWN_INSTRUMENTS = new Set([
     'keyboard','drums','guitar','ukulele','violin','viola','cello',
-    'bass-guitar','mandolin','banjo','flute','recorder','trumpet','saxophone',
+    'bass-guitar','mandolin','banjo','flute','recorder','trumpet','euphonium','tuba','saxophone',
   ]);
   // Instrument can come from query (?instrument=drums) OR from the URL path
   // (/drumslibrary → 'drums', /keyboardlibrary → 'keyboard', etc.).
   const _queryInstrument = (new URLSearchParams(window.location.search).get('instrument') || '').toLowerCase();
   const _pathMatch =
     window.location.pathname.match(/^\/([a-z-]+)\/library\/?$/) ||
-    window.location.pathname.match(/^\/([a-z-]+)library\/?$/);
+    window.location.pathname.match(/^\/([a-z-]+)library\/?$/) ||
+    // /<EDIT_PATH>/<instrument>/library — pull the last segment before /library.
+    window.location.pathname.match(/\/([a-z-]+)\/library\/?$/);
   const _pathInstrument = _pathMatch ? _pathMatch[1].toLowerCase() : '';
   const instrumentParam = _queryInstrument || _pathInstrument;
   const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
-  const songBelongsToInstrument = (s) => {
-    const tag = (s && typeof s.instrument === 'string') ? s.instrument.toLowerCase() : '';
-    if (instrument === 'drums') {
-      return tag === 'drums' || s.clef === 'drum' || s.clef === 'percussion';
-    }
-    if (instrument === 'keyboard') {
-      // Keyboard library = anything tagged keyboard OR untagged (legacy),
-      // but NEVER drum songs (clef-based fallback keeps them out even if
-      // a drum song slipped in without the instrument field).
-      if (s.clef === 'drum' || s.clef === 'percussion') return false;
-      return tag === '' || tag === 'keyboard';
-    }
-    return tag === instrument;
+  // Per-instrument playable pitch range (MIDI numbers). Songs from other
+  // libraries get auto-included if (a) they fit the range and (b) the clef
+  // matches what the instrument can read.
+  const INSTRUMENT_RANGE = {
+    ukulele:   { min: 60 /* C4 */,  max: 84 /* C6 */, clefs: new Set(['treble']) },
+    trumpet:   { min: 54 /* F#3 */, max: 84 /* C6 */, clefs: new Set(['treble']) },
+    // Euphonium: app drops octave + transposes up M2 on /euphonium, so any
+    // source song from the keyboard library that fits a trumpet's stored
+    // range will land comfortably on the euphonium. Accepts both treble
+    // (keyboard source) and bass (native euphonium source).
+    euphonium: { min: 54 /* F#3 */, max: 84 /* C6 */, clefs: new Set(['treble', 'bass']) },
+    // Tuba: app drops octave (no M2 transposition since tuba reads concert).
+    // Any keyboard source song that sits in F#3..C6 will land in tuba range
+    // (F#2..C5) after the drop — comfortable for the tuba's playing range.
+    tuba:      { min: 54 /* F#3 */, max: 84 /* C6 */, clefs: new Set(['treble', 'bass']) },
+    // Viola: concert range C3..E6 (open C string to high register). Reads
+    // alto clef at concert pitch — no transposition, no octave drop.
+    viola:     { min: 48 /* C3 */, max: 88 /* E6 */, clefs: new Set(['treble', 'alto']) },
+    // Mandolin: same tuning as violin (G3, D4, A4, E5). Practical range
+    // G3 to roughly C7 — covers folk, bluegrass, and classical.
+    mandolin:  { min: 55 /* G3 */, max: 96 /* C7 */, clefs: new Set(['treble']) },
+    // Banjo (5-string, standard tuning): D3, G3, B3, D4 + drone G4.
+    // Practical range D3..D6 for melody work.
+    banjo:     { min: 50 /* D3 */, max: 86 /* D6 */, clefs: new Set(['treble']) },
+    // Violin: open strings G3, D4, A4, E5. No octave drop, no transposition
+    // — reads concert pitch in treble clef. Practical range G3..A6.
+    violin:    { min: 55 /* G3 */, max: 93 /* A6 */, clefs: new Set(['treble']) },
+    // Cello: app drops octave on /cello, so a keyboard-source song fitting
+    // C4..C6 will play in cello's heart range (C3..C5) after the drop.
+    cello:     { min: 60 /* C4 */, max: 84 /* C6 */, clefs: new Set(['treble', 'bass']) },
   };
 
-  // In admin mode, derive the edit URL prefix from the current path
-  // (e.g. /<EDIT_PATH>/library → /<EDIT_PATH>). Song clicks open edit mode.
-  // For non-keyboard instruments, append the instrument so songs open in the
-  // matching per-instrument edit/play page.
-  const _basePrefix = isAdmin
-    ? window.location.pathname.replace(/\/library\/?$/, '')
-    : '';
-  const editPrefix = instrument === 'keyboard'
-    ? (isAdmin ? _basePrefix : '/keyboard')
-    : (isAdmin ? (_basePrefix + '/' + instrument) : ('/' + instrument));
+  function _midiFromNote(name, octave, accidental) {
+    const noteOrder = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const accShift = accidental === 'sharp' ? 1
+      : accidental === 'flat' ? -1
+      : accidental === 'double-sharp' ? 2
+      : accidental === 'double-flat' ? -2
+      : 0;
+    return (Number(octave) + 1) * 12 + (noteOrder[name] ?? 0) + accShift;
+  }
+
+  function _songFitsRange(song, min, max) {
+    if (!song || !Array.isArray(song.measures)) return false;
+    for (const m of song.measures) {
+      for (const n of (m.notes || [])) {
+        if (n.isRest) continue;
+        const p = _midiFromNote(n.name, n.octave, n.accidental);
+        if (p < min || p > max) return false;
+        if (Array.isArray(n.chord)) {
+          for (const c of n.chord) {
+            const cp = _midiFromNote(c.name, c.octave, c.accidental);
+            if (cp < min || cp > max) return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  const songBelongsToInstrument = (s) => {
+    const tag = (s && typeof s.instrument === 'string') ? s.instrument.toLowerCase() : '';
+    // HARD RULE: drum-tagged or drum-clef songs ONLY appear in the drum
+    // library — never anywhere else, even if their clef/range would otherwise
+    // qualify (e.g. Xanny by Billie Eilish is tagged 'drums' but has clef
+    // 'treble' and notes in C4–C6 range).
+    if (tag === 'drums' || s.clef === 'drum' || s.clef === 'percussion') {
+      return instrument === 'drums';
+    }
+    if (instrument === 'drums') return false;  // already handled above; non-drum songs never go here
+    if (instrument === 'keyboard') {
+      // Keyboard library = anything tagged keyboard OR untagged (legacy).
+      // On the LOCAL repo, folder songs (Michael Aaron Lessons Book 1, etc.)
+      // are excluded — they live on margaritasheets and have a pill that
+      // links there. On margaritasheets itself, those folders ARE the
+      // library, so don't filter them out.
+      const _onCloud = /margaritasheets/i.test(location.hostname);
+      if (!_onCloud && s.folder) return false;
+      return tag === '' || tag === 'keyboard';
+    }
+    // Other instruments — match by tag OR by range fit (clef must match).
+    if (tag === instrument) return true;
+    const rng = INSTRUMENT_RANGE[instrument];
+    if (rng && rng.clefs.has(s.clef) && _songFitsRange(s, rng.min, rng.max)) return true;
+    return false;
+  };
+
+  // Song click navigation. Three URL shapes need to map correctly:
+  //   /<instrument>/library  → /<instrument>           (player for that instrument)
+  //   /<EDIT_PATH>/library   → /<EDIT_PATH>/<instr>    (per-instrument edit)
+  //   /library               → /<instrument>           (kid play)
+  let editPrefix;
+  const _instrPathMatch = window.location.pathname.match(/^\/([a-z-]+)\/library\/?$/);
+  if (_instrPathMatch) {
+    // URL already has the instrument in path → just strip /library
+    editPrefix = '/' + _instrPathMatch[1];
+  } else if (isAdmin) {
+    // /<EDIT_PATH>/library → append instrument unless keyboard (keyboard's
+    // edit page is at the bare /<EDIT_PATH>).
+    const base = window.location.pathname.replace(/\/library\/?$/, '');
+    editPrefix = instrument === 'keyboard' ? base : (base + '/' + instrument);
+  } else {
+    editPrefix = '/' + instrument;
+  }
 
   // --- Embed mode ---
   // When the library is rendered inside the main app's iframe overlay,
@@ -729,6 +916,11 @@
   let tab = isAdmin
     ? (activeName && profiles[activeName] ? activeName : 'all')
     : 'all';
+  // ?folder=<name> URL param — when a pill on another library deep-links
+  // here ("/keyboard/library?folder=Michael+Aaron+Lessons+Book+1"), open
+  // that folder's tab on load instead of the default "All Songs" view.
+  const _folderParam = new URLSearchParams(window.location.search).get('folder');
+  if (_folderParam) tab = 'folder:' + _folderParam;
   let searchQuery = '';
   let sortBy = 'difficulty'; // 'title' | 'difficulty' | 'recent'
   let letterFilter = 'all';  // 'all' | 'A'..'Z' | '#' (non-alphabetic titles)
@@ -800,7 +992,16 @@
           const pw = prompt(msg);
           if (pw == null) return; // cancelled
           const hash = await sha256Hex(pw);
-          if (hash !== stored) { alert(tr('wrongPassword')); return; }
+          if (hash !== stored) {
+            // Owner override — anyone with browser access can wipe the
+            // profile from localStorage anyway, so make that path
+            // discoverable through the UI when the user forgets the
+            // profile password.
+            const override = confirm(
+              'Wrong password.\n\nIs this your own browser? If yes, you can force-delete this profile as the owner of this device.\n\nForce-delete "' + target + '"?'
+            );
+            if (!override) return;
+          }
         } else {
           if (!confirm(tr('confirmDelete', {name: target}))) return;
         }
@@ -897,18 +1098,42 @@
     // Empty folder → click shows the empty-state message but pill stays.
     // MA Lesson is keyboard-only (piano-method book), so the pill is
     // suppressed on every other instrument's library.
-    if (instrument === 'keyboard' && (/^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname) || /\.local$/i.test(location.hostname))) {
-      const FOLDERS = [
-        { dir: 'Michael Aaron Lessons Book 1', label: 'MA Lesson 1' },
-      ];
-      for (const f of FOLDERS) {
-        const tabKey = 'folder:' + f.dir;
-        const cnt = allSongs.filter(s => s.folder === f.dir).length;
-        const fLabel = '📁 ' + f.label + (showCounts ? ' (' + cnt + ')' : '');
-        const fBtn = button(fLabel, 'tab folder' + (tab === tabKey ? ' active' : ''));
-        if (tab === tabKey) fBtn.style.background = 'var(--accent)';
-        fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-        els.tabs.appendChild(fBtn);
+    {
+      const _hostname = location.hostname.toLowerCase();
+      const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(_hostname) || /\.local$/i.test(_hostname);
+      const _isCloud = /margaritasheets/.test(_hostname);
+      // Folder + cloud-library pills show on the owner's private envs
+      // (localhost + margaritasheets), NOT on the public live site.
+      if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
+        const CLOUD_FOLDERS = [
+          { dir: 'Michael Aaron Lessons Book 1', label: 'MA Lesson 1' },
+        ];
+        for (const f of CLOUD_FOLDERS) {
+          const tabKey = 'folder:' + f.dir;
+          const cnt = allSongs.filter(s => s.folder === f.dir).length;
+          const fLabel = '📘 ' + f.label + (_isCloud && showCounts ? ' (' + cnt + ')' : '');
+          const fBtn = button(fLabel, 'tab folder' + (tab === tabKey ? ' active' : ''));
+          if (tab === tabKey) fBtn.style.background = 'var(--accent)';
+          // On margaritasheets: filter in-page (songs live there).
+          // On localhost: deep-link to margaritasheets (songs are there, not local).
+          if (_isCloud) {
+            fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+          } else {
+            fBtn.onclick = () => {
+              window.location.href =
+                'https://margaritasheets.readandplaymusic.app/keyboard/library'
+                + '?folder=' + encodeURIComponent(f.dir);
+            };
+          }
+          els.tabs.appendChild(fBtn);
+        }
+        // Quick-link to the broader cloud library — only relevant locally
+        // (on margaritasheets the user is already there).
+        if (_isLocal) {
+          const msBtn = button('🔐 Margarita Sheets', 'tab folder');
+          msBtn.onclick = () => { window.location.href = 'https://margaritasheets.readandplaymusic.app/keyboard/library'; };
+          els.tabs.appendChild(msBtn);
+        }
       }
     }
   }
@@ -1104,7 +1329,7 @@
             const resp = await fetch(isPub ? '/api/unpublish' : '/api/publish', {
               method: 'POST', credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title })
+              body: JSON.stringify({ title, folder: song.folder || '' })
             });
             if (!resp.ok) throw new Error(await resp.text());
             song.published = !isPub;
