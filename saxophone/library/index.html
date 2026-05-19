@@ -723,7 +723,7 @@
   // were authored on the keyboard). Each instrument has its OWN library —
   // drum songs never appear in the keyboard library, and vice versa.
   const KNOWN_INSTRUMENTS = new Set([
-    'keyboard','drums','guitar','ukulele','violin','viola','cello',
+    'keyboard','drums','guitar','ukulele','violin','viola','cello','contrabass',
     'bass-guitar','mandolin','banjo','flute','recorder','trumpet','euphonium','tuba','saxophone',
   ]);
   // Instrument can come from query (?instrument=drums) OR from the URL path
@@ -767,6 +767,25 @@
     // Cello: app drops octave on /cello, so a keyboard-source song fitting
     // C4..C6 will play in cello's heart range (C3..C5) after the drop.
     cello:     { min: 60 /* C4 */, max: 84 /* C6 */, clefs: new Set(['treble', 'bass']) },
+    // Guitar: transposing instrument. Sheet music is written one octave
+    // HIGHER than it sounds — i.e. C4 on staff is played as C3 on the
+    // guitar. The keyboard library's sheet music applies as-is — no
+    // octave shift in display. The guitar's natural transposition (sound
+    // = staff − 12) just makes the audible performance an octave lower
+    // than the keyboard original, which is normal guitar behavior.
+    // Range below is therefore guitar's WRITTEN (notated) range E3..D7,
+    // checked against source notes (= the displayed pitches).
+    // Treble clef only — bass line of a grand staff is ignored.
+    guitar:    { min: 52 /* E3 written */, max: 98 /* D7 written */, clefs: new Set(['treble']) },
+    // Bass guitar: standard tuning E1..G4. App drops octave on /bass-guitar
+    // (see [[project-bass-clef-instruments]]), so any source song fitting
+    // E2..G5 will land inside bass guitar's playing range after the drop.
+    // Accepts both treble (keyboard source) and bass (native bass source).
+    'bass-guitar': { min: 40 /* E2 */, max: 79 /* G5 */, clefs: new Set(['treble', 'bass']) },
+    // Contrabass (double bass): standard tuning E1..G4 — same as bass guitar.
+    // /contrabass uses the same octave-drop pipeline as cello/bass-guitar,
+    // so a source song fitting E2..G5 lands in the contrabass playing range.
+    contrabass: { min: 40 /* E2 */, max: 79 /* G5 */, clefs: new Set(['treble', 'bass']) },
   };
 
   function _midiFromNote(name, octave, accidental) {
@@ -779,11 +798,17 @@
     return (Number(octave) + 1) * 12 + (noteOrder[name] ?? 0) + accShift;
   }
 
-  function _songFitsRange(song, min, max) {
+  // Only check notes the instrument actually plays. Grand-staff source
+  // songs (e.g. Hot Cross Buns has both treble + bass) should still qualify
+  // for treble-only instruments like the ukulele — the bass-clef line is
+  // stripped at load time on /ukulele, so it shouldn't disqualify the
+  // song's treble line from fitting the ukulele range.
+  function _songFitsRange(song, min, max, allowedClefs) {
     if (!song || !Array.isArray(song.measures)) return false;
     for (const m of song.measures) {
       for (const n of (m.notes || [])) {
         if (n.isRest) continue;
+        if (allowedClefs && n.staff && !allowedClefs.has(n.staff)) continue;
         const p = _midiFromNote(n.name, n.octave, n.accidental);
         if (p < min || p > max) return false;
         if (Array.isArray(n.chord)) {
@@ -820,7 +845,7 @@
     // Other instruments — match by tag OR by range fit (clef must match).
     if (tag === instrument) return true;
     const rng = INSTRUMENT_RANGE[instrument];
-    if (rng && rng.clefs.has(s.clef) && _songFitsRange(s, rng.min, rng.max)) return true;
+    if (rng && rng.clefs.has(s.clef) && _songFitsRange(s, rng.min, rng.max, rng.clefs)) return true;
     return false;
   };
 
