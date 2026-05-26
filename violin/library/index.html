@@ -834,12 +834,10 @@
     if (instrument === 'drums') return false;  // already handled above; non-drum songs never go here
     if (instrument === 'keyboard') {
       // Keyboard library = anything tagged keyboard OR untagged (legacy).
-      // On the LOCAL repo, folder songs (Michael Aaron Lessons Book 1, etc.)
-      // are excluded — they live on margaritasheets and have a pill that
-      // links there. On margaritasheets itself, those folders ARE the
-      // library, so don't filter them out.
-      const _onCloud = /margaritasheets/i.test(location.hostname);
-      if (!_onCloud && s.folder) return false;
+      // Folder songs (e.g. Michael Aaron Lessons Book 1) are part of the
+      // local library now too — the cloud songs have been synced down —
+      // so include them everywhere; their pill (e.g. "MA Lesson 1") groups
+      // them.
       return tag === '' || tag === 'keyboard';
     }
     // Other instruments — match by tag OR by range fit (clef must match).
@@ -861,8 +859,12 @@
   } else if (isAdmin) {
     // /<EDIT_PATH>/library → append instrument unless keyboard (keyboard's
     // edit page is at the bare /<EDIT_PATH>).
+    // Strip a trailing /<instrument> first — e.g. /<EDIT_PATH>/drums/library
+    // would otherwise produce /<EDIT_PATH>/drums/drums?song=... (404).
     const base = window.location.pathname.replace(/\/library\/?$/, '');
-    editPrefix = instrument === 'keyboard' ? base : (base + '/' + instrument);
+    const _trail = '/' + instrument;
+    const _baseStripped = base.endsWith(_trail) ? base.slice(0, -_trail.length) : base;
+    editPrefix = instrument === 'keyboard' ? _baseStripped : (_baseStripped + '/' + instrument);
   } else {
     editPrefix = '/' + instrument;
   }
@@ -1097,31 +1099,31 @@
       // (localhost + margaritasheets), NOT on the public live site.
       if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
         const CLOUD_FOLDERS = [
-          { dir: 'Michael Aaron Lessons Book 1', label: 'MA Lesson 1' },
+          { dir: 'Michael Aaron Lessons Book 1', label: 'Michael Aaron Lesson 1 book' },
         ];
         for (const f of CLOUD_FOLDERS) {
           const tabKey = 'folder:' + f.dir;
           const cnt = allSongs.filter(s => s.folder === f.dir).length;
-          const fLabel = '📘 ' + f.label + (_isCloud && showCounts ? ' (' + cnt + ')' : '');
+          const fLabel = '📘 ' + f.label + ' (' + cnt + ')';
           const fBtn = button(fLabel, 'tab folder' + (tab === tabKey ? ' active' : ''));
           if (tab === tabKey) fBtn.style.background = 'var(--accent)';
-          // On margaritasheets: filter in-page (songs live there).
-          // On localhost: deep-link to margaritasheets (songs are there, not local).
-          if (_isCloud) {
-            fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-          } else {
-            fBtn.onclick = () => {
-              window.location.href =
-                'https://margaritasheets.readandplaymusic.app/keyboard/library'
-                + '?folder=' + encodeURIComponent(f.dir);
-            };
-          }
+          // Always filter in-page — songs live in the local library on
+          // localhost too (folder JSONs in ~/Downloads/RAPMusic/<dir>/), so
+          // no redirect to margaritasheets and no password prompt on the
+          // edit page.
+          fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
           els.tabs.appendChild(fBtn);
         }
         // Quick-link to the broader cloud library — only relevant locally
-        // (on margaritasheets the user is already there).
+        // (on margaritasheets the user is already there). The Margarita
+        // Sheets pill represents COPYRIGHTED songs only — MA Lesson 1 has
+        // its own pill, so subtract those from the count.
         if (_isLocal) {
-          const msBtn = button('🔐 Margarita Sheets', 'tab folder');
+          const msCnt = allSongs.filter(s =>
+            s.licensed === true ||
+            (!!s.folder && s.folder !== 'Michael Aaron Lessons Book 1')
+          ).length;
+          const msBtn = button('🔐 Margarita Sheets (' + msCnt + ')', 'tab folder');
           msBtn.onclick = () => { window.location.href = 'https://margaritasheets.readandplaymusic.app/keyboard/library'; };
           els.tabs.appendChild(msBtn);
         }
@@ -1248,7 +1250,14 @@
     els.empty.hidden = true;
     els.songs.hidden = false;
 
-    if (isAdmin && sortBy === 'title') {
+    if (tab && tab.startsWith('folder:')) {
+      // Curriculum folders (e.g. Michael Aaron Lessons Book 1) follow the
+      // book's lesson order via `bookOrder`. Songs without one sort last.
+      visible.sort((a, b) =>
+        ((a.bookOrder == null ? 9999 : a.bookOrder) - (b.bookOrder == null ? 9999 : b.bookOrder))
+        || (a.title || '').localeCompare(b.title || '')
+      );
+    } else if (isAdmin && sortBy === 'title') {
       visible.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     } else if (isAdmin && sortBy === 'recent') {
       visible.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
