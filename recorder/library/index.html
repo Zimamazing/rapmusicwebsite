@@ -1094,7 +1094,7 @@
     {
       const _hostname = location.hostname.toLowerCase();
       const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(_hostname) || /\.local$/i.test(_hostname);
-      const _isCloud = /margaritasheets/.test(_hostname);
+      const _isCloud = /lessons/.test(_hostname);
       // Folder + cloud-library pills show on the owner's private envs
       // (localhost + margaritasheets), NOT on the public live site.
       if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
@@ -1123,8 +1123,8 @@
             s.licensed === true ||
             (!!s.folder && s.folder !== 'Michael Aaron Lessons Book 1')
           ).length;
-          const msBtn = button('🔐 Margarita Sheets (' + msCnt + ')', 'tab folder');
-          msBtn.onclick = () => { window.location.href = 'https://margaritasheets.readandplaymusic.app/keyboard/library'; };
+          const msBtn = button('🔐 Lessons (' + msCnt + ')', 'tab folder');
+          msBtn.onclick = () => { window.location.href = 'https://lessons.readandplaymusic.app/keyboard/library'; };
           els.tabs.appendChild(msBtn);
         }
       }
