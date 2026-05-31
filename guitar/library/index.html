@@ -1124,7 +1124,9 @@
             (!!s.folder && s.folder !== 'Michael Aaron Lessons Book 1')
           ).length;
           const msBtn = button('🔐 Lessons (' + msCnt + ')', 'tab folder');
-          msBtn.onclick = () => { window.location.href = 'https://lessons.readandplaymusic.app/keyboard/library'; };
+          // On localhost this pill opens the LOCAL lessons preview (port 8444),
+          // not the live site — previewing never touches lessons.readandplaymusic.app.
+          msBtn.onclick = () => { window.location.href = location.protocol + '//' + location.hostname + ':8444/keyboard/library'; };
           els.tabs.appendChild(msBtn);
         }
       }
