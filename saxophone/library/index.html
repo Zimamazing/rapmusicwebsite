@@ -834,7 +834,7 @@
     if (instrument === 'drums') return false;  // already handled above; non-drum songs never go here
     if (instrument === 'keyboard') {
       // Keyboard library = anything tagged keyboard OR untagged (legacy).
-      // Folder songs (e.g. Michael Aaron Lessons Book 1) are part of the
+      // Folder songs (e.g. Michael Aaron Lessons Grade 1) are part of the
       // local library now too — the cloud songs have been synced down —
       // so include them everywhere; their pill (e.g. "MA Lesson 1") groups
       // them.
@@ -1099,7 +1099,8 @@
       // (localhost + margaritasheets), NOT on the public live site.
       if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
         const CLOUD_FOLDERS = [
-          { dir: 'Michael Aaron Lessons Book 1', label: 'Michael Aaron Lesson 1 book' },
+          { dir: 'Michael Aaron Lessons Grade 1', label: 'Michael Aaron Lessons Grade 1' },
+          { dir: 'Michael Aaron Lessons Grade 2', label: 'Michael Aaron Lessons Grade 2' },
         ];
         for (const f of CLOUD_FOLDERS) {
           const tabKey = 'folder:' + f.dir;
@@ -1121,7 +1122,7 @@
         if (_isLocal) {
           const msCnt = allSongs.filter(s =>
             s.licensed === true ||
-            (!!s.folder && s.folder !== 'Michael Aaron Lessons Book 1')
+            (!!s.folder && !s.folder.startsWith('Michael Aaron Lessons'))
           ).length;
           const msBtn = button('🔐 Lessons (' + msCnt + ')', 'tab folder');
           // On localhost this pill opens the LOCAL lessons preview (port 8444),
@@ -1253,7 +1254,7 @@
     els.songs.hidden = false;
 
     if (tab && tab.startsWith('folder:')) {
-      // Curriculum folders (e.g. Michael Aaron Lessons Book 1) follow the
+      // Curriculum folders (e.g. Michael Aaron Lessons Grade 1) follow the
       // book's lesson order via `bookOrder`. Songs without one sort last.
       visible.sort((a, b) =>
         ((a.bookOrder == null ? 9999 : a.bookOrder) - (b.bookOrder == null ? 9999 : b.bookOrder))
