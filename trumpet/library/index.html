@@ -725,6 +725,7 @@
   const KNOWN_INSTRUMENTS = new Set([
     'keyboard','drums','guitar','ukulele','violin','viola','cello','contrabass',
     'bass-guitar','mandolin','banjo','flute','recorder','trumpet','euphonium','tuba','saxophone',
+    'conductor',
   ]);
   // Instrument can come from query (?instrument=drums) OR from the URL path
   // (/drumslibrary → 'drums', /keyboardlibrary → 'keyboard', etc.).
@@ -823,6 +824,10 @@
   }
 
   const songBelongsToInstrument = (s) => {
+    // Conductor full-scores live in their OWN library — only here, never in
+    // the keyboard or any instrument library.
+    if (s && s.conductor === true) return instrument === 'conductor';
+    if (instrument === 'conductor') return false;
     const tag = (s && typeof s.instrument === 'string') ? s.instrument.toLowerCase() : '';
     // HARD RULE: drum-tagged or drum-clef songs ONLY appear in the drum
     // library — never anywhere else, even if their clef/range would otherwise
