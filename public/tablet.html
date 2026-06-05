@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>window.__RPM_READONLY__ = true; window.__RPM_JAMS__ = true; window.__RPM_STUDENT__ = false;</script>
+<head><script>window.__RPM_READONLY__=true;window.__RPM_TABLET_BUILD__=true;window.__TABLET_VER__='3';/* isolated Android-tablet sandbox — index.html untouched */</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
@@ -14,6 +14,9 @@
   <meta name="theme-color" content="#9B6BFF">
   <!-- Preconnect to CDNs so the browser starts TCP + TLS handshakes while
        parsing HTML, saving ~100–300 ms on the first request to each host. -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>
@@ -33,14 +36,14 @@
      display=swap because its glyphs (clefs, rests, braces) render as
      missing/box characters in fallback fonts — we'd rather wait for it
      and accept the tiny swap. -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=optional" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=optional" crossorigin="anonymous"></noscript>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" crossorigin="anonymous"></noscript>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Open+Sans:wght@300;400&family=DM+Sans:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=optional" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
   <!-- Combining diacritics (U+0300-036F) fallback — Google Fonts' default Noto
        Sans subsets omit most combining marks (e.g. the synalepha tie U+035C
        used in Spanish hymn lyrics like Himno Nacional). A text=-subsetted
        Noto Sans guarantees those glyphs are served. Used as second-stack
        font for lyric text. -->
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans&text=%CC%80%CC%81%CC%82%CC%83%CC%84%CC%85%CC%86%CC%87%CC%88%CC%89%CC%8A%CC%8B%CC%8C%CC%8D%CC%8E%CC%8F%CC%90%CC%91%CC%92%CC%93%CC%94%CC%95%CC%96%CC%97%CC%98%CC%99%CC%9A%CC%9B%CC%9C%CC%9D%CC%9E%CC%9F%CC%A0%CC%A1%CC%A2%CC%A3%CC%A4%CC%A5%CC%A6%CC%A7%CC%A8%CC%A9%CC%AA%CC%AB%CC%AC%CC%AD%CC%AE%CC%AF%CC%B0%CC%B1%CC%B2%CC%B3%CC%B4%CC%B5%CC%B6%CC%B7%CC%B8%CC%B9%CC%BA%CC%BB%CC%BC%CC%BD%CC%BE%CC%BF%CD%80%CD%81%CD%82%CD%83%CD%84%CD%85%CD%86%CD%87%CD%88%CD%89%CD%8A%CD%8B%CD%8C%CD%8D%CD%8E%CD%8F%CD%90%CD%91%CD%92%CD%93%CD%94%CD%95%CD%96%CD%97%CD%98%CD%99%CD%9A%CD%9B%CD%9C%CD%9D%CD%9E%CD%9F%CD%A0%CD%A1%CD%A2%CD%A3%CD%A4%CD%A5%CD%A6%CD%A7%CD%A8%CD%A9%CD%AA%CD%AB%CD%AC%CD%AD%CD%AE%CD%AF&display=optional" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans&text=%CC%80%CC%81%CC%82%CC%83%CC%84%CC%85%CC%86%CC%87%CC%88%CC%89%CC%8A%CC%8B%CC%8C%CC%8D%CC%8E%CC%8F%CC%90%CC%91%CC%92%CC%93%CC%94%CC%95%CC%96%CC%97%CC%98%CC%99%CC%9A%CC%9B%CC%9C%CC%9D%CC%9E%CC%9F%CC%A0%CC%A1%CC%A2%CC%A3%CC%A4%CC%A5%CC%A6%CC%A7%CC%A8%CC%A9%CC%AA%CC%AB%CC%AC%CC%AD%CC%AE%CC%AF%CC%B0%CC%B1%CC%B2%CC%B3%CC%B4%CC%B5%CC%B6%CC%B7%CC%B8%CC%B9%CC%BA%CC%BB%CC%BC%CC%BD%CC%BE%CC%BF%CD%80%CD%81%CD%82%CD%83%CD%84%CD%85%CD%86%CD%87%CD%88%CD%89%CD%8A%CD%8B%CD%8C%CD%8D%CD%8E%CD%8F%CD%90%CD%91%CD%92%CD%93%CD%94%CD%95%CD%96%CD%97%CD%98%CD%99%CD%9A%CD%9B%CD%9C%CD%9D%CD%9E%CD%9F%CD%A0%CD%A1%CD%A2%CD%A3%CD%A4%CD%A5%CD%A6%CD%A7%CD%A8%CD%A9%CD%AA%CD%AB%CD%AC%CD%AD%CD%AE%CD%AF&display=optional" crossorigin="anonymous"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&text=%CC%80%CC%81%CC%82%CC%83%CC%84%CC%85%CC%86%CC%87%CC%88%CC%89%CC%8A%CC%8B%CC%8C%CC%8D%CC%8E%CC%8F%CC%90%CC%91%CC%92%CC%93%CC%94%CC%95%CC%96%CC%97%CC%98%CC%99%CC%9A%CC%9B%CC%9C%CC%9D%CC%9E%CC%9F%CC%A0%CC%A1%CC%A2%CC%A3%CC%A4%CC%A5%CC%A6%CC%A7%CC%A8%CC%A9%CC%AA%CC%AB%CC%AC%CC%AD%CC%AE%CC%AF%CC%B0%CC%B1%CC%B2%CC%B3%CC%B4%CC%B5%CC%B6%CC%B7%CC%B8%CC%B9%CC%BA%CC%BB%CC%BC%CC%BD%CC%BE%CC%BF%CD%80%CD%81%CD%82%CD%83%CD%84%CD%85%CD%86%CD%87%CD%88%CD%89%CD%8A%CD%8B%CD%8C%CD%8D%CD%8E%CD%8F%CD%90%CD%91%CD%92%CD%93%CD%94%CD%95%CD%96%CD%97%CD%98%CD%99%CD%9A%CD%9B%CD%9C%CD%9D%CD%9E%CD%9F%CD%A0%CD%A1%CD%A2%CD%A3%CD%A4%CD%A5%CD%A6%CD%A7%CD%A8%CD%A9%CD%AA%CD%AB%CD%AC%CD%AD%CD%AE%CD%AF&display=optional" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
   <!-- ─── Localhost dev auto-reload ───────────────────────────────────
        The server pre-compiles index.html into a versioned app bundle and
        cache-busts that version on every edit. An already-open tab keeps
@@ -56,20 +59,16 @@
       || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/i.test(h);
     if (!isDev) return;
     function start() {
-      var s = document.querySelector('script[src^="/app.js"]');
-      var m = s && s.getAttribute('src').match(/app\.js\?(.+)$/);
-      var myVer = m && m[1];
-      if (!myVer) return;
+      // Sandbox compiles in-browser (no /app.js) — version off __TABLET_VER__,
+      // which is bumped on each edit so this throwaway file auto-reloads.
+      var myVer = window.__TABLET_VER__;
+      if (myVer == null) return;
       setInterval(function () {
         fetch(location.pathname + '?_lr=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' })
           .then(function (r) { return r.text(); })
           .then(function (t) {
-            // Parse the fetched HTML and read the real bundle script element's
-            // src, so incidental text elsewhere on the page can't false-match.
-            var sc = new DOMParser().parseFromString(t, 'text/html')
-              .querySelector('script[src^="/app.js"]');
-            var mm = sc && sc.getAttribute('src').match(/app\.js\?(.+)$/);
-            if (mm && mm[1] !== myVer) location.reload();
+            var mm = t.match(/__TABLET_VER__\s*=\s*'([^']+)'/);
+            if (mm && mm[1] !== String(myVer)) location.reload();
           })
           .catch(function () {});
       }, 2000);
@@ -124,8 +123,11 @@
        Babel-standalone scans for <script type="text/babel"> tags on load, so
        it still compiles + runs the inline app code correctly — just after
        first paint instead of blocking it. Huge LCP win on slow connections. -->
-  <script src="/keyboard/vendor/react.production.min.js" crossorigin="anonymous" defer></script>
-  <script src="/keyboard/vendor/react-dom.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" crossorigin="anonymous" defer></script>
   <script>
     // Server-side storage API
     window.rapmusicAPI = {
@@ -196,6 +198,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v425-1780688746" defer></script>
+  <script src="/public/tablet-app.js?v=3" defer></script>
 </body>
 </html>
