@@ -7293,6 +7293,7 @@ function MusicNotationEditor() {
     setClickedDrop({ measure: practicePos.measure, colorIdx: _colorIdx });
   }, [playMode, practicePos.measure, practicePos.note]);
   useEffect(() => {
+    if (window.__RPM_NODROPS__) return;
     if (sliderActiveRef.current) return;
     if (isPaused) return;
     if (!isPlaying || !playStartTimeRef.current) {
@@ -8693,8 +8694,10 @@ function MusicNotationEditor() {
         timeouts.push(setTimeout(() => {
           var _a3;
           playPositionRef.current = { measure: mi2, note: ni2 };
-          setPlayingIdx({ measure: mi2, note: ni2 });
-          setPlayingNotes((prev) => ({ ...prev, [mi2 + "-" + ni2]: true }));
+          if (!window.__RPM_NOVIS__) {
+            setPlayingIdx({ measure: mi2, note: ni2 });
+            setPlayingNotes((prev) => ({ ...prev, [mi2 + "-" + ni2]: true }));
+          }
           if (!note.isRest && synthRef.current) {
             var resolve = (p, ci3) => {
               if (p.accidental && p.accidental !== "none") return p.accidental;
@@ -8758,19 +8761,21 @@ function MusicNotationEditor() {
                 }
               }
               var keyNames = pitches.map(({ pitch: pitch2 }) => pianoKeyName(pitch2));
-              setPressedPianoKeys((prev) => {
-                var next = { ...prev };
-                for (var i2 = 0; i2 < pitches.length; i2++) {
-                  next[keyNames[i2]] = noteColorMap[pitches[i2].pitch.name] || "#fff";
-                }
-                return next;
-              });
-              bumpPianoKeyPulse(keyNames);
+              if (!window.__RPM_NOVIS__) {
+                setPressedPianoKeys((prev) => {
+                  var next = { ...prev };
+                  for (var i2 = 0; i2 < pitches.length; i2++) {
+                    next[keyNames[i2]] = noteColorMap[pitches[i2].pitch.name] || "#fff";
+                  }
+                  return next;
+                });
+                bumpPianoKeyPulse(keyNames);
+              }
             }
           }
         }, noteTime * 1e3));
         timeouts.push(setTimeout(() => {
-          setPlayingNotes((prev) => {
+          if (!window.__RPM_NOVIS__) setPlayingNotes((prev) => {
             var next = { ...prev };
             delete next[mi2 + "-" + ni2];
             return next;
@@ -8779,7 +8784,7 @@ function MusicNotationEditor() {
         var FLASH_MIN_MS = 220;
         var keyHoldMs = Math.max(noteDur * 1e3, FLASH_MIN_MS);
         timeouts.push(setTimeout(() => {
-          setPlayingIdx((prev) => prev.measure === mi2 && prev.note === ni2 ? { measure: -1, note: -1 } : prev);
+          if (!window.__RPM_NOVIS__) setPlayingIdx((prev) => prev.measure === mi2 && prev.note === ni2 ? { measure: -1, note: -1 } : prev);
           var effKS = effectiveKeySig(measures, mi2, keySig);
           var resolveClear = (p, ci3) => {
             if (p.accidental && p.accidental !== "none") return p.accidental;
@@ -8793,7 +8798,7 @@ function MusicNotationEditor() {
               if (tInfo.attackChord[ci2] !== false) toClear.push([note.chord[ci2], ci2]);
             }
           }
-          setPressedPianoKeys((prev) => {
+          if (!window.__RPM_NOVIS__) setPressedPianoKeys((prev) => {
             var next = { ...prev };
             for (var [p, ci3] of toClear) delete next[pianoKeyName(p, ci3)];
             return next;
@@ -9199,6 +9204,7 @@ function MusicNotationEditor() {
   var lyricInputRef = useRef(null);
   var scrollAnimRef = useRef(null);
   useEffect(() => {
+    if (window.__RPM_NOSCROLL__) return;
     if (!isPlaying || isPaused) {
       if (scrollAnimRef.current) {
         cancelAnimationFrame(scrollAnimRef.current);
@@ -9210,6 +9216,7 @@ function MusicNotationEditor() {
     if (!container) return;
     var ANCHOR = 7 / 8;
     var _lastViewSync = 0;
+    var _lastPaint = 0;
     var tick = () => {
       var startT = playStartTimeRef.current;
       var timeline = scrollTimelineRef.current;
@@ -9239,15 +9246,12 @@ function MusicNotationEditor() {
         var visibleSvgW = tabletViewW / staffScale;
         var target = Math.min(maxViewX, x - visibleSvgW * ANCHOR);
         playViewXRef.current = target;
-        if (svgRef.current) {
+        var _nowMs = performance.now();
+        if (svgRef.current && _nowMs - _lastPaint > 80) {
+          _lastPaint = _nowMs;
           var _vw = tabletViewW / staffScale / (mobileZoom || 1);
           var _vh = tabletViewH / staffScale / (mobileZoom || 1);
           svgRef.current.setAttribute("viewBox", `${target} ${tabletViewTop + tabletViewYOffset} ${_vw} ${_vh}`);
-        }
-        var _nowMs = performance.now();
-        if (_nowMs - _lastViewSync > 300) {
-          _lastViewSync = _nowMs;
-          setTabletViewX(target);
         }
       } else {
         var cssPerSvg = isMobile ? mobileScale * (mobileZoom || 1) * staffScale : 1;
@@ -12508,6 +12512,10 @@ function MusicNotationEditor() {
         var rowY = row * ROW_HEIGHT;
         var rowMeasures = measures.slice(row * MEASURES_PER_ROW, (row + 1) * MEASURES_PER_ROW);
         var startIdx = row * MEASURES_PER_ROW;
+        var _camX = isPlaying ? playViewXRef.current : Math.min(tabletViewX, maxViewX);
+        var _viewWvirt = tabletViewW / staffScale / (mobileZoom || 1);
+        var _winLeftX = _camX - _viewWvirt;
+        var _winRightX = _camX + 2 * _viewWvirt;
         var staffWidth = CLEF_WIDTH + keySigWidth + TIME_SIG_WIDTH + totalMeasuresWidth(startIdx, rowMeasures.length);
         var headerW = CLEF_WIDTH + keySigWidth + TIME_SIG_WIDTH + 40;
         var headerX = STAFF_LEFT - 40;
@@ -12539,6 +12547,7 @@ function MusicNotationEditor() {
           var mi = startIdx + ci;
           var mx = contentStart + offsetOfMeasure(mi);
           var mWidth = widthOfMeasure(mi);
+          if (mx + mWidth < _winLeftX || mx > _winRightX) return null;
           var _basePulses = pulseBeatsPerMeasure(timeSig);
           var _subdiv = songSubdivisions;
           var _pulses = _basePulses * _subdiv;
@@ -12626,6 +12635,7 @@ function MusicNotationEditor() {
           var mi = startIdx + ci;
           var mx = contentStart + offsetOfMeasure(mi);
           var mWidth = widthOfMeasure(mi);
+          if (mx + mWidth < _winLeftX || mx > _winRightX) return null;
           var barBottom = isMultiStaff(clef) ? BASS_STAFF_TOP + 4 * LINE_SPACING : STAFF_TOP + 4 * LINE_SPACING;
           var isPasteTarget = copyMode && pasteTarget && pasteTarget.measure === mi;
           var isInCopyRange = copyMode && copyScope === "measures" && selectedMeasures && mi >= Math.min(selectedMeasures.from, selectedMeasures.to) && mi <= Math.max(selectedMeasures.from, selectedMeasures.to);
