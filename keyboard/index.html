@@ -55,6 +55,7 @@
       || /^192\.168\./.test(h) || /^10\./.test(h)
       || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/i.test(h);
     if (!isDev) return;
+    function paused() { return localStorage.getItem('rpmPauseReload') === '1'; }
     function start() {
       var s = document.querySelector('script[src^="/app.js"]');
       var m = s && s.getAttribute('src').match(/app\.js\?(.+)$/);
@@ -69,13 +70,57 @@
             var sc = new DOMParser().parseFromString(t, 'text/html')
               .querySelector('script[src^="/app.js"]');
             var mm = sc && sc.getAttribute('src').match(/app\.js\?(.+)$/);
-            if (mm && mm[1] !== myVer) location.reload();
+            if (mm && mm[1] !== myVer) {
+              // A newer bundle exists. If the owner PAUSED updates (e.g. mid-edit),
+              // hold the reload and flag it as waiting so the on-screen control can
+              // light up — she picks it up on Resume. Otherwise reload as before.
+              if (paused()) localStorage.setItem('rpmUpdatePending', '1');
+              else location.reload();
+            }
           })
           .catch(function () {});
       }, 2000);
     }
-    if (document.readyState === 'complete') start();
-    else window.addEventListener('load', start);
+    // Floating Pause/Resume control — edit mode only (window.__RPM_READONLY__
+    // === false). Lets the owner freeze auto-reloads while editing so a UI
+    // rebuild never reloads her mid-edit; Resume re-enables and, if an update
+    // arrived while paused, reloads to pick it up. One editor, she's in control.
+    function control() {
+      var btn = document.createElement('button');
+      btn.id = 'rpm-reload-ctl';
+      btn.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:9000;'
+        + 'font:600 12px system-ui,-apple-system,sans-serif;padding:7px 11px;'
+        + 'border-radius:8px;border:1px solid #cbd5e1;color:#1a1a1a;'
+        + 'box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;display:none;';
+      function render() {
+        var editing = window.__RPM_READONLY__ === false;
+        btn.style.display = editing ? 'block' : 'none';
+        var p = paused(), pend = localStorage.getItem('rpmUpdatePending') === '1';
+        btn.textContent = p ? (pend ? '🔄 Resume — update ready' : '▶ Resume updates') : '⏸ Pause updates';
+        btn.style.background = p ? (pend ? '#fde68a' : '#e5e7eb') : '#ffffff';
+        btn.title = p ? "Auto-updates paused — you won't be reloaded. Click to resume."
+                      : "Pause auto-updates so a fix never reloads you mid-edit.";
+      }
+      btn.onclick = function () {
+        if (paused()) {
+          localStorage.removeItem('rpmPauseReload');
+          if (localStorage.getItem('rpmUpdatePending') === '1') {
+            localStorage.removeItem('rpmUpdatePending');
+            location.reload();
+            return;
+          }
+        } else {
+          localStorage.setItem('rpmPauseReload', '1');
+        }
+        render();
+      };
+      document.body.appendChild(btn);
+      render();
+      setInterval(render, 1500);
+    }
+    function init() { start(); control(); }
+    if (document.readyState === 'complete') init();
+    else window.addEventListener('load', init);
   })();
   </script>
   <style>
@@ -196,6 +241,6 @@
       },
     };
   </script>
-  <script src="app.js?v429-1781056512" defer></script>
+  <script src="app.js?v436-1781205432" defer></script>
 </body>
 </html>
