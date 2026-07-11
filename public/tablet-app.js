@@ -4793,6 +4793,7 @@ function MusicNotationEditor() {
   var writeMidiNote = useCallback((name, octave, accidental) => {
     var _a2;
     if (isPlayingRef.current) return;
+    if (playModeRef.current) return;
     {
       var _SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
       var _pc = (_SEMI[name] + (accidental === "sharp" ? 1 : accidental === "flat" ? -1 : 0) + 12) % 12;
@@ -16113,12 +16114,10 @@ function MusicNotationEditor() {
             var _bb = Math.floor(pianoH * 0.6835);
             return `inset(${Math.max(0, pianoH - _bb)}px 0 0 0)`;
           })() : void 0,
-          // Block browser-native pinch-zoom on the piano so a pinch gesture
-          // on the keys doesn't zoom the entire page. Only the staff should
-          // respond to pinch (handled by the pinch handlers on scoreAreaRef).
-          touchAction: isMobile || isTablet2 ? "none" : void 0,
-          overflowX: isMobile && mobileZoom > 1 ? "auto" : "visible",
-          touchAction: isMobile ? "pan-x" : void 0
+          // Tablet: block browser-native pinch-zoom on the piano (it should zoom
+          // nothing). Mobile: allow horizontal pan so a wide keyboard scrolls.
+          touchAction: isTablet2 ? "none" : isMobile ? "pan-x" : void 0,
+          overflowX: isMobile && mobileZoom > 1 ? "auto" : "visible"
         }
       },
       /* @__PURE__ */ React.createElement("div", { style: { display: "flex", position: "relative", height: pianoH, width: totalW, flexShrink: 0 } }, whiteKeys.map((k, i) => {

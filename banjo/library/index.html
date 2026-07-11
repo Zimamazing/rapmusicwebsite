@@ -1101,7 +1101,7 @@
       const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(_hostname) || /\.local$/i.test(_hostname);
       const _isCloud = /lessons/.test(_hostname);
       // Folder + cloud-library pills show on the owner's private envs
-      // (localhost + margaritasheets), NOT on the public live site.
+      // (localhost + lessons), NOT on the public live site.
       if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
         const CLOUD_FOLDERS = [
           { dir: 'Michael Aaron Lessons Grade 1', label: 'Michael Aaron Lessons Grade 1' },
@@ -1115,25 +1115,10 @@
           if (tab === tabKey) fBtn.style.background = 'var(--accent)';
           // Always filter in-page — songs live in the local library on
           // localhost too (folder JSONs in ~/Downloads/RAPMusic/<dir>/), so
-          // no redirect to margaritasheets and no password prompt on the
+          // no redirect to lessons and no password prompt on the
           // edit page.
           fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
           els.tabs.appendChild(fBtn);
-        }
-        // Quick-link to the broader cloud library — only relevant locally
-        // (on margaritasheets the user is already there). The Margarita
-        // Sheets pill represents COPYRIGHTED songs only — MA Lesson 1 has
-        // its own pill, so subtract those from the count.
-        if (_isLocal) {
-          const msCnt = allSongs.filter(s =>
-            s.licensed === true ||
-            (!!s.folder && !s.folder.startsWith('Michael Aaron Lessons'))
-          ).length;
-          const msBtn = button('🔐 Lessons (' + msCnt + ')', 'tab folder');
-          // On localhost this pill opens the LOCAL lessons preview (port 8444),
-          // not the live site — previewing never touches lessons.readandplaymusic.app.
-          msBtn.onclick = () => { window.location.href = location.protocol + '//' + location.hostname + ':8444/keyboard/library'; };
-          els.tabs.appendChild(msBtn);
         }
       }
     }
