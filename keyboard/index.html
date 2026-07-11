@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>/* Cloudflare serves this page as a static asset, bypassing the Worker's
+     edit-flag injection. Set edit mode here, client-side, by hostname:
+     edit.readandplaymusic.app → owner editor; library.* stays read-only. */
+  if (/^edit\./i.test(location.hostname)) window.__RPM_READONLY__ = false;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
@@ -53,7 +57,11 @@
     var h = location.hostname;
     var isDev = /^(localhost|127\.0\.0\.1)$/.test(h) || h === '::1'
       || /^192\.168\./.test(h) || /^10\./.test(h)
-      || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/i.test(h);
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/i.test(h)
+      // The owner's iPad views localhost through the Cloudflare tunnel at this
+      // host — treat it as a dev origin so edits auto-reload there too. The LIVE
+      // site is readandplaymusic.app (NOT mirror.*), so it stays inert.
+      || h === 'mirror.readandplaymusic.app';
     if (!isDev) return;
     function paused() { return localStorage.getItem('rpmPauseReload') === '1'; }
     function start() {
@@ -171,6 +179,8 @@
        first paint instead of blocking it. Huge LCP win on slow connections. -->
   <script src="vendor/react.production.min.js" crossorigin="anonymous" defer></script>
   <script src="vendor/react-dom.production.min.js" crossorigin="anonymous" defer></script>
+  <!-- Google Identity Services — "Sign in with Google" for persistent accounts (2026-06-11) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     // Server-side storage API
     window.rapmusicAPI = {
@@ -241,6 +251,6 @@
       },
     };
   </script>
-  <script src="app.js?v436-1781206886" defer></script>
+  <script src="app.js?v443-1783805177" defer></script>
 </body>
 </html>
