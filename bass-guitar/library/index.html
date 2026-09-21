@@ -1505,7 +1505,13 @@
       // Live site behavior unchanged (IS_LOCALHOST is false on readandplaymusic.app).
       const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname) || /\.local$/i.test(location.hostname);
       const endpoint = (isAdmin || _isLocal) ? '/api/songs' : '/api/published';
-      const res = await fetch(endpoint, { credentials: 'include' });
+      // no-store is load-bearing: GitHub Pages serves /api/published with
+      // `cache-control: max-age=600`, so without this the library shows a
+      // manifest up to 10 minutes stale — a song reordered or removed by a
+      // release keeps its old position on screen and looks like the fix
+      // failed. The keyboard app's fetches already pass no-store; this one
+      // was missed.
+      const res = await fetch(endpoint, { credentials: 'include', cache: 'no-store' });
       const songs = await res.json();
       const raw = Array.isArray(songs) ? songs : [];
       // Each instrument has its own library. Filter at load so all the
@@ -1522,7 +1528,7 @@
       // counts too.
       if (isAdmin && _isLocal) {
         try {
-          const pubRes = await fetch('/api/published', { credentials: 'include' });
+          const pubRes = await fetch('/api/published', { credentials: 'include', cache: 'no-store' });
           const pub = await pubRes.json();
           if (Array.isArray(pub)) {
             const liveByTitle = new Map();
