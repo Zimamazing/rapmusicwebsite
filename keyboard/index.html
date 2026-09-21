@@ -60,8 +60,8 @@
       || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/i.test(h)
       // The owner's iPad views localhost through the Cloudflare tunnel at this
       // host — treat it as a dev origin so edits auto-reload there too. The LIVE
-      // site is readandplaymusic.app (NOT mirror.*), so it stays inert.
-      || h === 'mirror.readandplaymusic.app';
+      // site is readandplaymusic.app (NOT conductor.*), so it stays inert.
+      || h === 'conductor.readandplaymusic.app';
     if (!isDev) return;
     function paused() { return localStorage.getItem('rpmPauseReload') === '1'; }
     function start() {
@@ -251,6 +251,6 @@
       },
     };
   </script>
-  <script src="app.js?v443-1783805177" defer></script>
+  <script src="app.js?v443-1790015484" defer></script>
 </body>
 </html>
