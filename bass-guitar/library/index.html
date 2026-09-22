@@ -1268,11 +1268,12 @@
       const link = document.createElement('a');
       link.className = 'link';
       // Kid play gets a clean URL — /keyboard/jinglebells. The edit page
-      // keeps ?song= (it resolves unpublished drafts by exact title), as do
-      // titles with no Latin letters (empty slug). Same slug rule as
-      // songSlug in index.html and scripts/release-to-public.{sh,mjs}.
-      const slug = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/#/g, 'sharp').replace(/♭/g, 'flat').toLowerCase().replace(/[^a-z0-9]/g, '');
+      // keeps ?song= (it resolves unpublished drafts by exact title). Non-Latin
+      // titles keep their script (君が代 → /keyboard/君が代). Same slug rule
+      // as songSlug in index.html and scripts/release-to-public.{sh,mjs}.
+      const slug = title.normalize('NFD').replace(/([A-Za-z])[\u0300-\u036f]+/g, '$1')
+        .replace(/#/g, 'sharp').replace(/♭/g, 'flat').toLowerCase()
+        .replace(/[^\p{L}\p{N}\p{M}]/gu, '').normalize('NFC');
       link.href = (isAdmin || !slug)
         ? editPrefix + '?song=' + encodeURIComponent(title)
         : editPrefix + '/' + slug;
