@@ -131,6 +131,7 @@
   .action-btn.action-open { background: var(--accent); color: var(--text); border-color: var(--accent); }
   .action-btn.action-publish { background: #16a34a; color: #fff; border-color: #16a34a; }
   .action-btn.action-publish.published { background: #f97316; color: #fff; border-color: #f97316; }
+  .action-btn.action-lessons.on { background: #2563eb; color: #fff; border-color: #2563eb; }
   .action-btn.action-publish-live { background: #dc2626; color: #fff; border-color: #dc2626; font-weight: 700; }
   .action-btn.action-delete { color: var(--danger); }
 
@@ -805,6 +806,15 @@
   // stripped at load time on /ukulele, so it shouldn't disqualify the
   // song's treble line from fitting the ukulele range.
   function _songFitsRange(song, min, max, allowedClefs) {
+    // The library list is slim (no `measures`); the server sends each
+    // song's per-staff lowest/highest pitch instead.
+    if (song && !Array.isArray(song.measures) && song._pitchRange) {
+      for (const [staff, [lo, hi]] of Object.entries(song._pitchRange)) {
+        if (allowedClefs && staff && !allowedClefs.has(staff)) continue;
+        if (lo < min || hi > max) return false;
+      }
+      return true;
+    }
     if (!song || !Array.isArray(song.measures)) return false;
     for (const m of song.measures) {
       for (const n of (m.notes || [])) {
@@ -1053,7 +1063,7 @@
     const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
     const allCount = allSongs.filter(s =>
-      (s.published === true || s.published === 'true') && !s.folder
+      _isPublic(s) && !s.folder
     ).length;
 
     const allLabel = '📚 ' + tr('tabAll') + (showCounts ? ' (' + allCount + ')' : '');
@@ -1081,7 +1091,7 @@
     // Admin-only: "Unpublished" pill — quick scan of songs not yet on
     // the live site. Hidden in baby/public mode.
     if (isAdmin) {
-      const unpubCount = allSongs.filter(s => !(s.published === true || s.published === 'true')).length;
+      const unpubCount = allSongs.filter(s => !_isPublic(s)).length;
       const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
       const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
       if (tab === 'unpublished') unpubBtn.style.background = 'var(--accent)';
@@ -1130,6 +1140,15 @@
     return b;
   }
 
+  // On the PUBLIC WEBSITE? (song.public). Older copies without the flag —
+  // e.g. the live site's own .published list — fall back to `published`.
+  // The Lessons switch is `published` (students), shown on its own button.
+  function _isPublic(s) {
+    if (!s) return false;
+    if (typeof s.public === 'boolean') return s.public;
+    return s.published === true || s.published === 'true';
+  }
+
   // --- Render: A-Z filter strip ---
   function renderAlphabet() {
     els.alphabet.innerHTML = '';
@@ -1139,13 +1158,13 @@
     if (tab === 'rpmusic') {
       pool = pool.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      pool = pool.filter(s => !(s.published === true || s.published === 'true'));
+      pool = pool.filter(s => !_isPublic(s));
     } else if (tab !== 'all' && profiles[tab]) {
       const saved = new Set(profiles[tab].songs || []);
       pool = pool.filter(s => saved.has((s.title || '').trim()));
     } else if (tab === 'all') {
       pool = pool.filter(s =>
-        (s.published === true || s.published === 'true') && !s.folder
+        _isPublic(s) && !s.folder
       );
     }
     const letters = new Set();
@@ -1181,7 +1200,7 @@
     if (tab === 'rpmusic') {
       visible = visible.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      visible = visible.filter(s => !(s.published === true || s.published === 'true'));
+      visible = visible.filter(s => !_isPublic(s));
     } else if (tab && tab.startsWith('folder:')) {
       const dir = tab.slice('folder:'.length);
       visible = visible.filter(s => s.folder === dir);
@@ -1195,7 +1214,7 @@
       // so apply that filter here. Unpublished + folder songs still show
       // under their dedicated pills.
       visible = visible.filter(s =>
-        (s.published === true || s.published === 'true') && !s.folder
+        _isPublic(s) && !s.folder
       );
     }
 
@@ -1318,7 +1337,7 @@
         };
         actions.appendChild(openBtn);
 
-        const isPub = song.published === true || song.published === 'true';
+        const isPub = _isPublic(song);
         const pubBtn = document.createElement('button');
         pubBtn.className = 'action-btn action-publish' + (isPub ? ' published' : '');
         pubBtn.textContent = isPub ? 'Unpublish' : 'Publish';
@@ -1332,7 +1351,7 @@
               body: JSON.stringify({ title, folder: song.folder || '' })
             });
             if (!resp.ok) throw new Error(await resp.text());
-            song.published = !isPub;
+            song.public = !isPub;
             renderSongs();
           } catch (err) {
             alert('Publish failed: ' + (err.message || err));
@@ -1340,6 +1359,31 @@
           }
         };
         actions.appendChild(pubBtn);
+
+        // Lessons on/off — students on the lessons site (song.published).
+        const inLessons = song.published === true || song.published === 'true';
+        const lesBtn = document.createElement('button');
+        lesBtn.className = 'action-btn action-lessons' + (inLessons ? ' on' : '');
+        lesBtn.textContent = inLessons ? '🎓 Lessons ✓' : '🎓 Lessons ✗';
+        lesBtn.title = inLessons ? 'Students can see this song — click to hide it from Lessons' : 'Students can\'t see this song — click to show it in Lessons';
+        lesBtn.onclick = async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          lesBtn.disabled = true;
+          try {
+            const resp = await fetch('/api/lessons', {
+              method: 'POST', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, folder: song.folder || '', on: !inLessons })
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+            song.published = !inLessons;
+            renderSongs();
+          } catch (err) {
+            alert('Lessons change failed: ' + (err.message || err));
+            lesBtn.disabled = false;
+          }
+        };
+        actions.appendChild(lesBtn);
 
         // 🚀 Publish Live — only shown for songs locally published. Owner-only
         // path to deploy this song + entire working-dir to readandplaymusic.app.
