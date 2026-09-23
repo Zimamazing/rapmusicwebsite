@@ -195,10 +195,13 @@
           const res = await fetch('/api/songs', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ song, oldTitle, loadedFrom: opts && opts.loadedFrom, allowOverwrite: !!(opts && opts.allowOverwrite) }),
+            body: JSON.stringify({ song, oldTitle, loadedFrom: opts && opts.loadedFrom, allowOverwrite: !!(opts && opts.allowOverwrite),
+              expectedSavedAt: opts && opts.expectedSavedAt, force: !!(opts && opts.force) }),
           });
           if (res.status === 409) {
             const data = await res.json().catch(() => ({}));
+            // The song changed somewhere else after this page opened it.
+            if (data.error === 'stale') return { stale: true, currentSavedAt: data.currentSavedAt };
             console.warn('Save blocked — would overwrite different song:', data.existingTitle);
             return { blocked: true, existingTitle: data.existingTitle };
           }
@@ -251,6 +254,6 @@
       },
     };
   </script>
-  <script src="app.js?v443-1790183172" defer></script>
+  <script src="app.js?v443-1790186111" defer></script>
 </body>
 </html>
