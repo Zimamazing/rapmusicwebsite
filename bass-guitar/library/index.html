@@ -682,6 +682,9 @@
   (function wirePublishToPublicSite() {
     const btn = document.getElementById('publishToPublicSiteBtn');
     if (!btn) return;
+    // Hidden for now (owner 2026-09-23: "remove the publish to public
+    // website for now"). Flip to true to bring the button back.
+    if (!SHOW_SITE_DEPLOY_BUTTONS) return;
     if (!isAdmin) return;  // hidden by default; only show for admin
     btn.style.display = 'block';
     btn.addEventListener('click', async () => {
@@ -1143,6 +1146,10 @@
   // On the PUBLIC WEBSITE? (song.public). Older copies without the flag —
   // e.g. the live site's own .published list — fall back to `published`.
   // The Lessons switch is `published` (students), shown on its own button.
+  // Site-deploy buttons (big rainbow bar + per-song "Publish Live") are
+  // hidden for now (owner 2026-09-23). Flip to true to bring them back.
+  var SHOW_SITE_DEPLOY_BUTTONS = false;
+
   function _isPublic(s) {
     if (!s) return false;
     if (typeof s.public === 'boolean') return s.public;
@@ -1387,7 +1394,9 @@
 
         // 🚀 Publish Live — only shown for songs locally published. Owner-only
         // path to deploy this song + entire working-dir to readandplaymusic.app.
-        if (isPub) {
+        // Per-song "Publish Live" ships the whole site like the big button —
+        // hidden with it for now (owner 2026-09-23).
+        if (isPub && typeof SHOW_SITE_DEPLOY_BUTTONS !== 'undefined' && SHOW_SITE_DEPLOY_BUTTONS) {
           const liveBtn = document.createElement('button');
           liveBtn.className = 'action-btn action-publish-live';
           liveBtn.textContent = '🚀 Publish Live';
