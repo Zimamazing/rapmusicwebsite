@@ -1157,8 +1157,12 @@
   }
 
   // --- Render: A-Z filter strip ---
+  // A–Z letter strip hidden until every letter has songs (owner
+  // 2026-09-24). Flip to true to bring it back.
+  var SHOW_ALPHABET = false;
   function renderAlphabet() {
     els.alphabet.innerHTML = '';
+    if (!SHOW_ALPHABET) { els.alphabet.style.display = 'none'; letterFilter = 'all'; return; }
 
     // Which letters have songs *within the current tab*? Other letters gray out.
     let pool = allSongs.slice();
