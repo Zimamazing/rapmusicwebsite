@@ -163,6 +163,48 @@
     .nav-links { gap: 14px; }
   }
 </style>
+<script>
+/* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
+   injection so the owner's own devices are never counted (2026-09-24).
+   Opening any page once with ?owner=<word> marks that browser as the
+   owner's; only the word's SHA-256 is stored here. */
+(function () {
+  var TOKEN = '7c17140bb4c54274bc8154a3dd5f89e4';
+  var OWNER_HASH = 'e3b0485486595c4809cda0d11c1003637dac9601a47861c02ce5420bc32d53f2';
+  var KEY = 'rpm_owner_no_count';
+  function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
+  function load() {
+    if (isOwner()) return;
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    s.setAttribute('data-cf-beacon', JSON.stringify({ token: TOKEN, spa: true }));
+    document.head.appendChild(s);
+  }
+  function note(text) {
+    var show = function () {
+      var d = document.createElement('div');
+      d.textContent = text;
+      d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#222;color:#fff;font:600 15px system-ui,sans-serif;padding:10px 18px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25)';
+      document.body.appendChild(d);
+      setTimeout(function () { d.remove(); }, 4000);
+    };
+    if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+  }
+  var word = null;
+  try { word = new URLSearchParams(location.search).get('owner'); } catch (e) {}
+  if (!word || !(window.crypto && crypto.subtle)) { load(); return; }
+  crypto.subtle.digest('SHA-256', new TextEncoder().encode(word)).then(function (buf) {
+    var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    if (hex === OWNER_HASH) {
+      try { localStorage.setItem(KEY, '1'); } catch (e) {}
+      note(isOwner() ? 'Owner: not counted \u2713' : 'Could not save \u2014 this browser blocks storage');
+      try { var u = new URL(location.href); u.searchParams.delete('owner'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
+    }
+    load();
+  }, load);
+})();
+</script>
 </head>
 <body>
 
