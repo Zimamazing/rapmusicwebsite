@@ -1,6 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Separate instrument libraries (owner 2026-09-28: "the library of every
+  // instrument should be separate"). On a guitar page every song request goes
+  // to the guitar's own library: /api/songs → /api/guitar/songs, and the same
+  // for /api/published, /api/publish, /api/unpublish, /api/lessons. Works on
+  // localhost, the cloud editor and the static public site alike.
+  (function () {
+    var LIBS = { guitar: 1 };
+    function lib() {
+      if (window.__RPM_GUITAR__) return 'guitar';
+      var m = location.pathname.match(/\/(guitar)\/library\/?$/);
+      if (m) return m[1];
+      try { var q = new URLSearchParams(location.search).get('instrument'); if (q && LIBS[q]) return q; } catch (e) {}
+      return null;
+    }
+    window.__rpmSongLibrary = lib;
+    var origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      try {
+        var l = lib();
+        if (l && typeof input === 'string') {
+          var m = input.match(/^\/api\/(songs|published|publish|unpublish|lessons)(\/[^?]*|)(\?.*)?$/);
+          if (m) input = '/api/' + l + '/' + m[1] + (m[2] || '') + (m[3] || '');
+        }
+      } catch (e) {}
+      return origFetch.call(this, input, init);
+    };
+  })();
+</script>
   <script>/* Cloudflare serves this page as a static asset, bypassing the Worker's
      edit-flag injection. Set edit mode here, client-side, by hostname:
      edit.readandplaymusic.app → owner editor; library.* stays read-only. */
@@ -296,6 +325,6 @@
       },
     };
   </script>
-  <script src="app.js?v443-1790600598" defer></script>
+  <script src="app.js?v443-1790605696" defer></script>
 </body>
 </html>

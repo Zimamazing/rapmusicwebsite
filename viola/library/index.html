@@ -1,6 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Separate instrument libraries (owner 2026-09-28: "the library of every
+  // instrument should be separate"). On a guitar page every song request goes
+  // to the guitar's own library: /api/songs → /api/guitar/songs, and the same
+  // for /api/published, /api/publish, /api/unpublish, /api/lessons. Works on
+  // localhost, the cloud editor and the static public site alike.
+  (function () {
+    var LIBS = { guitar: 1 };
+    function lib() {
+      if (window.__RPM_GUITAR__) return 'guitar';
+      var m = location.pathname.match(/\/(guitar)\/library\/?$/);
+      if (m) return m[1];
+      try { var q = new URLSearchParams(location.search).get('instrument'); if (q && LIBS[q]) return q; } catch (e) {}
+      return null;
+    }
+    window.__rpmSongLibrary = lib;
+    var origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      try {
+        var l = lib();
+        if (l && typeof input === 'string') {
+          var m = input.match(/^\/api\/(songs|published|publish|unpublish|lessons)(\/[^?]*|)(\?.*)?$/);
+          if (m) input = '/api/' + l + '/' + m[1] + (m[2] || '') + (m[3] || '');
+        }
+      } catch (e) {}
+      return origFetch.call(this, input, init);
+    };
+  })();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Library — R&P Music</title>
@@ -892,6 +921,9 @@
       return instrument === 'drums';
     }
     if (instrument === 'drums') return false;  // already handled above; non-drum songs never go here
+    // Separate-library instruments (guitar) already list ONLY their own songs
+    // (owner 2026-09-28) — no range filter; everything in it belongs.
+    if (instrument === 'guitar') return true;
     if (instrument === 'keyboard') {
       // Keyboard library = anything tagged keyboard OR untagged (legacy).
       // Folder songs (e.g. Michael Aaron Lessons Grade 1) are part of the
