@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <script>
+  // GUITAR: the tablet must look exactly like the computer (owner 2026-09-29).
+  // The touch-tablet toolbar-shrink CSS is scoped to html:not(.rpm-guitar), so
+  // tag <html> here — the instrument flags are injected just above, and this
+  // runs before first paint, so there's no flash of the tablet sizing.
+  try { if (window.__RPM_GUITAR__) document.documentElement.classList.add('rpm-guitar'); } catch (e) {}
+</script>
+<script>
   // Publish → "Who wrote this?" (owner 2026-09-29). Resolves 'own' |
   // 'public-domain' | null (cancel). The answer is saved with the song and is
   // what lets the automatic public release through the copyright check.
@@ -353,6 +360,6 @@
       },
     };
   </script>
-  <script src="app.js?v443-1790697595" defer></script>
+  <script src="app.js?v444-1790711473" defer></script>
 </body>
 </html>
