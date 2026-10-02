@@ -36,10 +36,14 @@
   // for /api/published, /api/publish, /api/unpublish, /api/lessons. Works on
   // localhost, the cloud editor and the static public site alike.
   (function () {
-    var LIBS = { guitar: 1 };
+    var LIBS = { guitar: 1, conductor: 1 };
     function lib() {
       if (window.__RPM_GUITAR__) return 'guitar';
-      var m = location.pathname.match(/\/(guitar)\/library\/?$/);
+      // The conductor keeps its own library too (owner 2026-09-30) — full
+      // orchestral scores, not an instrument's repertoire. Kept in step with
+      // the same block in index.html.
+      if (window.__RPM_CONDUCTOR__) return 'conductor';
+      var m = location.pathname.match(/\/(guitar|conductor)\/library\/?$/);
       if (m) return m[1];
       try { var q = new URLSearchParams(location.search).get('instrument'); if (q && LIBS[q]) return q; } catch (e) {}
       return null;
