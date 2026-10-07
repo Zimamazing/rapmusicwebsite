@@ -1181,7 +1181,7 @@
     const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
     const allCount = allSongs.filter(s =>
-      _isPublic(s) && !s.folder
+      _isShown(s) && !s.folder
     ).length;
 
     const allLabel = '📚 ' + tr('tabAll') + (showCounts ? ' (' + allCount + ')' : '');
@@ -1209,7 +1209,7 @@
     // Admin-only: "Unpublished" pill — quick scan of songs not yet on
     // the live site. Hidden in baby/public mode.
     if (isAdmin) {
-      const unpubCount = allSongs.filter(s => !_isPublic(s)).length;
+      const unpubCount = allSongs.filter(s => !_isShown(s)).length;
       const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
       const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
       if (tab === 'unpublished') unpubBtn.style.background = 'var(--accent)';
@@ -1261,8 +1261,8 @@
   // On the PUBLIC WEBSITE? (song.public). Older copies without the flag —
   // e.g. the live site's own .published list — fall back to `published`.
   // The Lessons switch is `published` (students), shown on its own button.
-  // Site-deploy buttons (big rainbow bar + per-song "Publish Live") are
-  // hidden for now (owner 2026-09-23). Flip to true to bring them back.
+  // The big rainbow site-deploy bar stays hidden (owner 2026-09-23); the per-song
+  // 🚀 Publish Live is back (owner 2026-10-07) and no longer reads this flag.
   var SHOW_SITE_DEPLOY_BUTTONS = false;
 
   function _isPublic(s) {
@@ -1270,6 +1270,11 @@
     if (typeof s.public === 'boolean') return s.public;
     return s.published === true || s.published === 'true';
   }
+  // Owner 2026-10-07: Publish = LESSONS (what students see); 🚀 Publish Live = the public
+  // website. So for the owner, "published / unpublished" in the tabs and on the card
+  // means lessons. The public site has no admin view and keeps the website flag.
+  function _inLessons(s) { return !!s && (s.published === true || s.published === 'true'); }
+  function _isShown(s) { return isAdmin ? _inLessons(s) : _isPublic(s); }
 
   // --- Render: A-Z filter strip ---
   // A–Z letter strip hidden until every letter has songs (owner
@@ -1284,13 +1289,13 @@
     if (tab === 'rpmusic') {
       pool = pool.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      pool = pool.filter(s => !_isPublic(s));
+      pool = pool.filter(s => !_isShown(s));
     } else if (tab !== 'all' && profiles[tab]) {
       const saved = new Set(profiles[tab].songs || []);
       pool = pool.filter(s => saved.has((s.title || '').trim()));
     } else if (tab === 'all') {
       pool = pool.filter(s =>
-        _isPublic(s) && !s.folder
+        _isShown(s) && !s.folder
       );
     }
     const letters = new Set();
@@ -1326,7 +1331,7 @@
     if (tab === 'rpmusic') {
       visible = visible.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      visible = visible.filter(s => !_isPublic(s));
+      visible = visible.filter(s => !_isShown(s));
     } else if (tab && tab.startsWith('folder:')) {
       const dir = tab.slice('folder:'.length);
       visible = visible.filter(s => s.folder === dir);
@@ -1340,7 +1345,7 @@
       // so apply that filter here. Unpublished + folder songs still show
       // under their dedicated pills.
       visible = visible.filter(s =>
-        _isPublic(s) && !s.folder
+        _isShown(s) && !s.folder
       );
     }
 
@@ -1463,26 +1468,24 @@
         };
         actions.appendChild(openBtn);
 
-        const isPub = _isPublic(song);
+        // Publish / Unpublish = LESSONS (students), owner 2026-10-07. Takes effect at once.
+        const isPub = _inLessons(song);
         const pubBtn = document.createElement('button');
         pubBtn.className = 'action-btn action-publish' + (isPub ? ' published' : '');
         pubBtn.textContent = isPub ? 'Unpublish' : 'Publish';
+        pubBtn.title = isPub ? 'Students can see this song on the lessons site — click to hide it' : 'Click to show this song to students on the lessons site';
         pubBtn.onclick = async (e) => {
           e.preventDefault(); e.stopPropagation();
-          let _clearance = null;
-          if (!isPub) {
-            _clearance = await window.rpmAskClearance(title);
-            if (!_clearance) return;   // someone else's / not sure → stays off the public site
-          }
           pubBtn.disabled = true;
           try {
-            const resp = await fetch(isPub ? '/api/unpublish' : '/api/publish', {
+            const resp = await fetch('/api/lessons', {
               method: 'POST', credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(Object.assign({ title, folder: song.folder || '' }, _clearance ? { clearance: _clearance } : {}))
+              body: JSON.stringify({ title, folder: song.folder || '', on: !isPub })
             });
             if (!resp.ok) throw new Error(await resp.text());
-            song.public = !isPub;
+            song.published = !isPub;
+            renderTabs();
             renderSongs();
           } catch (err) {
             alert('Publish failed: ' + (err.message || err));
@@ -1491,62 +1494,54 @@
         };
         actions.appendChild(pubBtn);
 
-        // Lessons on/off — students on the lessons site (song.published).
-        const inLessons = song.published === true || song.published === 'true';
-        const lesBtn = document.createElement('button');
-        lesBtn.className = 'action-btn action-lessons' + (inLessons ? ' on' : '');
-        lesBtn.textContent = inLessons ? '🎓 Lessons ✓' : '🎓 Lessons ✗';
-        lesBtn.title = inLessons ? 'Students can see this song — click to hide it from Lessons' : 'Students can\'t see this song — click to show it in Lessons';
-        lesBtn.onclick = async (e) => {
+        // 🚀 Publish Live / Unpublish Live = the PUBLIC WEBSITE, owner 2026-10-07. Marks
+        // this one song for readandplaymusic.app ("Who wrote this?" copyright check
+        // first), then starts a release built from the COMMITTED app code — never
+        // unfinished work on the Mac. Where no release can be started from here (the
+        // cloud editor), the song is marked and goes live at the next release.
+        const isLive = _isPublic(song);
+        const liveBtn = document.createElement('button');
+        liveBtn.className = 'action-btn action-publish-live' + (isLive ? ' published' : '');
+        const liveLabel = isLive ? 'Unpublish Live' : '🚀 Publish Live';
+        liveBtn.textContent = liveLabel;
+        liveBtn.title = isLive ? 'On readandplaymusic.app — click to take it off the website' : 'Put this song on readandplaymusic.app (the public website)';
+        liveBtn.onclick = async (e) => {
           e.preventDefault(); e.stopPropagation();
-          lesBtn.disabled = true;
+          let _clearance = null;
+          if (!isLive) {
+            _clearance = await window.rpmAskClearance(title);
+            if (!_clearance) return;   // someone else's / not sure → stays off the public site
+          } else if (!confirm(`Take "${title}" off readandplaymusic.app?`)) {
+            return;
+          }
+          liveBtn.disabled = true;
+          liveBtn.textContent = isLive ? 'Removing…' : '🚀 Publishing…';
           try {
-            const resp = await fetch('/api/lessons', {
+            const resp = await fetch(isLive ? '/api/unpublish' : '/api/publish', {
               method: 'POST', credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, folder: song.folder || '', on: !inLessons })
+              body: JSON.stringify(Object.assign({ title, folder: song.folder || '' }, _clearance ? { clearance: _clearance } : {}))
             });
             if (!resp.ok) throw new Error(await resp.text());
-            song.published = !inLessons;
-            renderSongs();
-          } catch (err) {
-            alert('Lessons change failed: ' + (err.message || err));
-            lesBtn.disabled = false;
-          }
-        };
-        actions.appendChild(lesBtn);
-
-        // 🚀 Publish Live — only shown for songs locally published. Owner-only
-        // path to deploy this song + entire working-dir to readandplaymusic.app.
-        // Per-song "Publish Live" ships the whole site like the big button —
-        // hidden with it for now (owner 2026-09-23).
-        if (isPub && typeof SHOW_SITE_DEPLOY_BUTTONS !== 'undefined' && SHOW_SITE_DEPLOY_BUTTONS) {
-          const liveBtn = document.createElement('button');
-          liveBtn.className = 'action-btn action-publish-live';
-          liveBtn.textContent = '🚀 Publish Live';
-          liveBtn.title = 'Push to readandplaymusic.app (live site)';
-          liveBtn.onclick = async (e) => {
-            e.preventDefault(); e.stopPropagation();
-            if (!confirm(`Push "${title}" + the entire local working directory to LIVE readandplaymusic.app?\n\nThis is irreversible until the next deploy.`)) return;
-            liveBtn.disabled = true;
-            liveBtn.textContent = '🚀 Pushing…';
+            song.public = !isLive;
+            let shipped = false;
             try {
-              const resp = await fetch('/api/release-to-live', {
+              const rel = await fetch('/api/release-to-live', {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason: 'publish-live: ' + (title || '') })
+                body: JSON.stringify({ reason: (isLive ? 'unpublish-live: ' : 'publish-live: ') + (title || '') })
               });
-              if (!resp.ok) throw new Error(await resp.text());
-              liveBtn.textContent = '✅ Live in ~60s';
-              setTimeout(() => { liveBtn.disabled = false; liveBtn.textContent = '🚀 Publish Live'; }, 8000);
-            } catch (err) {
-              alert('Publish live failed: ' + (err.message || err));
-              liveBtn.disabled = false;
-              liveBtn.textContent = '🚀 Publish Live';
-            }
-          };
-          actions.appendChild(liveBtn);
-        }
+              shipped = rel.ok;
+            } catch (e2) { /* no release from here */ }
+            liveBtn.textContent = shipped ? '✅ Live in ~1 min' : '✅ Marked — goes live at the next release';
+            setTimeout(() => { renderSongs(); }, 4000);
+          } catch (err) {
+            alert('Publish Live failed: ' + (err.message || err));
+            liveBtn.disabled = false;
+            liveBtn.textContent = liveLabel;
+          }
+        };
+        actions.appendChild(liveBtn);
 
         const delBtn = document.createElement('button');
         delBtn.className = 'action-btn action-delete';
