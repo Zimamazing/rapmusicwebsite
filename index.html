@@ -27,6 +27,7 @@
 <meta name="twitter:image" content="https://readandplaymusic.app/icon.png?v=2026-05-26">
 <link href="https://fonts.googleapis.com/css2?family=Chicle&family=DM+Sans:wght@700&family=Noto+Music&display=swap" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
 <style>
+  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
@@ -53,7 +54,7 @@
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .logo { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 32px; }
   .logo img { width: 48px; height: 48px; border-radius: 10px; }
-  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; }
+  .brand-logo { font-family: 'Bass Font Straightened', 'Chicle', cursive; font-weight: 400; font-synthesis: none; letter-spacing: 0.05em; }
   .brand-logo .r { color: var(--c); }
   .brand-logo .p { color: var(--g); }
   .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.04em; text-shadow: -1px -1px 0 #a87b00, 1px -1px 0 #a87b00, -1px 1px 0 #a87b00, 1px 1px 0 #a87b00, -1px 0 0 #a87b00, 1px 0 0 #a87b00, 0 -1px 0 #a87b00, 0 1px 0 #a87b00; }
@@ -95,7 +96,7 @@
   [dir="rtl"] .lang-list { right: auto; left: 0; }
 
   .hero { padding: 100px 0 80px; text-align: center; }
-  .hero h1 { font-family: 'Chicle', cursive; font-size: clamp(40px, 7vw, 64px); font-weight: 600; letter-spacing: 0.08em; line-height: 1.15; margin-bottom: 24px; }
+  .hero h1 { font-family: 'Bass Font Straightened', 'Chicle', cursive; font-weight: 400; font-synthesis: none; font-size: clamp(40px, 7vw, 64px); letter-spacing: 0.08em; line-height: 1.15; margin-bottom: 24px; }
   .hero h1 .note, .install-title .note { display: inline-block; transition: transform 0.2s; }
   .hero h1 .note:hover, .install-title .note:hover { transform: translateY(-6px) rotate(-6deg); }
   .n-r { color: var(--c); }
@@ -137,7 +138,7 @@
      above the title on narrow screens. */
   .phone-break { display: none; }
   @media (max-width: 600px) { .phone-break { display: inline; } }
-  .brand-text { font-family: 'Chicle', cursive; letter-spacing: 0.11em; }
+  .brand-text { font-family: 'Bass Font Straightened', 'Chicle', cursive; font-weight: 400; font-synthesis: none; letter-spacing: 0.11em; }
   .amp { display: inline-block; margin: 0 -0.11em; }
   .hero h1 .amp { margin: 0 -0.08em; }
 
@@ -265,7 +266,7 @@
     <h1>
       <span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music
     </h1>
-    <p data-i18n="tagline">Colored notes. Colored keys.\nLearn to read and play music.</p>
+    <p data-i18n="tagline">Colored notes. Colored keys.\nIf you can read it, you can play it.</p>
     <a href="/keyboard" class="cta">
       <span data-i18n="launch">Let's go!</span>
     </a>
@@ -502,7 +503,7 @@
   const TRANSLATIONS = {
     en: {
       navFeatures: "Features", navLaunch: "Launch", navHelp: "Help",
-      tagline: "Colored notes. Colored keys.\nLearn to read and play music.",
+      tagline: "Colored notes. Colored keys.\nIf you can read it, you can play it.",
       launch: "Let's go!",
       ctaSub: "<strong>Free</strong> · runs in your browser · no installation needed",
       featuresTitle: "The fun is in the fundamentals.",

@@ -298,7 +298,11 @@
       async listSongs() {
         try {
           const res = await fetch('/api/songs');
-          return await res.json();
+          if (!res.ok) return [];
+          const songs = await res.json();
+          // An expired cloud session returns an error object, not a song list.
+          // Keep library state an array so the login prompt can still render.
+          return Array.isArray(songs) ? songs : [];
         } catch (e) { console.error('List failed:', e); return []; }
       },
       async saveSong(song, oldTitle, opts) {
@@ -365,6 +369,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v449-1791400481" defer></script>
+  <script src="/keyboard/app.js?v449-1791820583" defer></script>
 </body>
 </html>
