@@ -311,12 +311,13 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ song, oldTitle, loadedFrom: opts && opts.loadedFrom, allowOverwrite: !!(opts && opts.allowOverwrite),
-              expectedSavedAt: opts && opts.expectedSavedAt, force: !!(opts && opts.force) }),
+              expectedSavedAt: opts && opts.expectedSavedAt, force: !!(opts && opts.force), createOnly: !!(opts && opts.createOnly) }),
           });
           if (res.status === 409) {
             const data = await res.json().catch(() => ({}));
             // The song changed somewhere else after this page opened it.
             if (data.error === 'stale') return { stale: true, currentSavedAt: data.currentSavedAt };
+            if (data.error === 'exists') return { exists: true };
             console.warn('Save blocked — would overwrite different song:', data.existingTitle);
             return { blocked: true, existingTitle: data.existingTitle };
           }
@@ -369,6 +370,6 @@
       },
     };
   </script>
-  <script src="/keyboard/app.js?v449-1791820583" defer></script>
+  <script src="/keyboard/app.js?v449-1791867163" defer></script>
 </body>
 </html>
