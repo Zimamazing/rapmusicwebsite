@@ -97,8 +97,8 @@
 
   .hero { padding: 100px 0 80px; text-align: center; }
   .hero h1 { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; font-size: clamp(40px, 7vw, 64px); letter-spacing: 0em; line-height: 1.15; margin-bottom: 24px; }
-  .hero h1 .note, .install-title .note { display: inline-block; transition: transform 0.2s; }
-  .hero h1 .note:hover, .install-title .note:hover { transform: translateY(-6px) rotate(-6deg); }
+  .hero h1 .note, .hero h1 .amp, .install-title .note, .install-title .amp, .brand-logo .amp, .brand .amp { display: inline-block; transition: transform 0.2s; }
+  .hero h1 .note:hover, .hero h1 .amp:hover, .install-title .note:hover, .install-title .amp:hover, .brand-logo .amp:hover, .brand .amp:hover { transform: translateY(-6px) rotate(-6deg); }
   .n-r { color: var(--c); }
   .n-e { color: var(--d); }
   .n-a { color: var(--e); }
@@ -173,7 +173,7 @@
   <div class="container nav">
     <div class="logo">
       <img src="icon.png?v=2026-05-26" alt="R&P Music logo">
-      <span class="brand-logo"><span class="n-r">R</span><span class="n-e">e</span><span class="n-a">a</span><span class="n-d">d</span><span class="amp">&amp;</span><span style="color:#3b82f6">P</span><span style="color:#6366f1">l</span><span style="color:#8b5cf6">a</span><span style="color:#ec4899">y</span> Music</span>
+      <span class="brand-logo"><span class="n-r">R</span><span class="n-e">e</span><span class="n-a">a</span><span class="n-d">d</span><span class="note amp">&amp;</span><span style="color:#3b82f6">P</span><span style="color:#6366f1">l</span><span style="color:#8b5cf6">a</span><span style="color:#ec4899">y</span> Music</span>
     </div>
     <nav class="nav-links">
       <a href="#features" data-i18n="navFeatures">Features</a>
@@ -222,7 +222,7 @@
 <section class="hero">
   <div class="container">
     <h1>
-      <span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music
+      <span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="note amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music
     </h1>
     <p data-i18n="tagline">Colored notes. Colored keys.\nIf you can read it, you can play it.</p>
     <a href="/keyboard/library" class="cta">
@@ -432,7 +432,7 @@
 
 <section class="install-tip">
   <div class="container">
-    <h2 class="install-title"><span data-i18n="installClick">Click </span><a href="/keyboard" class="launch-btn" data-i18n="navLaunch">Launch</a><span data-i18n="installTo"> to </span><br class="phone-break"><span class="brand-text"><span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music</span><span data-i18n="installSuffix">.</span></h2>
+    <h2 class="install-title"><span data-i18n="installClick">Click </span><a href="/keyboard" class="launch-btn" data-i18n="navLaunch">Launch</a><span data-i18n="installTo"> to </span><br class="phone-break"><span class="brand-text"><span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="note amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Music</span><span data-i18n="installSuffix">.</span></h2>
     <p data-i18n="installBody1">No download needed.</p>
     <p data-i18n="installBody2" style="margin-top:28px">Want it to feel like an app?</p>
     <p data-i18n="installBody3">On iPad/iPhone tap Share → Add to Home Screen.</p>
@@ -450,7 +450,7 @@
       <span data-i18n="sayHi">We'd love to hear from you.</span>
     </a>
     <div class="footer-meta">
-      <span>© 2026 <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span></span>
+      <span>© 2026 <span class="brand-logo"><span class="r">R</span><span class="note amp">&amp;</span><span class="p">P</span> Music</span></span>
       <a href="/privacy" data-i18n="privacy">Privacy</a>
       <a href="/credits" data-i18n="credits">Credits</a>
     </div>
