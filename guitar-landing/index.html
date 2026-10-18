@@ -27,6 +27,7 @@
 <meta name="twitter:image" content="https://readandplaymusic.app/icon.png?v=2026-05-26">
 <link href="https://fonts.googleapis.com/css2?family=Chicle&family=DM+Sans:wght@700&family=Noto+Music&display=swap" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer">
 <style>
+  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf?v=2026-10-18') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
@@ -53,10 +54,10 @@
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .logo { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 32px; }
   .logo img { width: 48px; height: 48px; border-radius: 10px; }
-  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; }
+  .brand-logo { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; letter-spacing: 0em; }
   .brand-logo .r { color: var(--c); }
   .brand-logo .p { color: var(--g); }
-  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.04em; text-shadow: -1px -1px 0 #a87b00, 1px -1px 0 #a87b00, -1px 1px 0 #a87b00, 1px 1px 0 #a87b00, -1px 0 0 #a87b00, 1px 0 0 #a87b00, 0 -1px 0 #a87b00, 0 1px 0 #a87b00; }
+  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0; }
   .nav-links { display: flex; align-items: center; gap: 20px; }
   .nav-links a { color: var(--text2); font-size: 15px; }
 
@@ -95,12 +96,12 @@
   [dir="rtl"] .lang-list { right: auto; left: 0; }
 
   .hero { padding: 100px 0 80px; text-align: center; }
-  .hero h1 { font-family: 'Chicle', cursive; font-size: clamp(40px, 7vw, 64px); font-weight: 600; letter-spacing: 0.08em; line-height: 1.15; margin-bottom: 24px; }
+  .hero h1 { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; font-size: clamp(40px, 7vw, 64px); letter-spacing: 0em; line-height: 1.15; margin-bottom: 24px; }
   .hero h1 .note, .install-title .note { display: inline-block; transition: transform 0.2s; }
   .hero h1 .note:hover, .install-title .note:hover { transform: translateY(-6px) rotate(-6deg); }
   .n-r { color: var(--c); }
   .n-e { color: var(--d); }
-  .n-a { color: var(--e); text-shadow: 0 0 1px #a87b00, 0 0 1px #a87b00; }
+  .n-a { color: var(--e); }
   .n-d { color: var(--f); }
   .n-p { color: var(--g); }
   .n-l { color: var(--a); }
@@ -142,9 +143,9 @@
      above the title on narrow screens. */
   .phone-break { display: none; }
   @media (max-width: 600px) { .phone-break { display: inline; } }
-  .brand-text { font-family: 'Chicle', cursive; letter-spacing: 0.11em; }
-  .amp { display: inline-block; margin: 0 -0.11em; }
-  .hero h1 .amp { margin: 0 -0.08em; }
+  .brand-text { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; letter-spacing: 0em; }
+  .amp { display: inline-block; color: var(--e); margin: 0; }
+  .hero h1 .amp { color: var(--e); margin: 0; }
 
   footer { padding: 40px 0; text-align: center; color: var(--text2); font-size: 14px; border-top: 1px solid var(--border); }
   footer .links { margin-bottom: 12px; display: inline-flex; align-items: center; gap: 16px; }
@@ -168,48 +169,6 @@
     .nav-links { gap: 14px; }
   }
 </style>
-<script>
-/* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
-   injection so the owner's own devices are never counted (2026-09-24).
-   Opening any page once with ?owner=<word> marks that browser as the
-   owner's; only the word's SHA-256 is stored here. */
-(function () {
-  var TOKEN = '7c17140bb4c54274bc8154a3dd5f89e4';
-  var OWNER_HASH = 'e3b0485486595c4809cda0d11c1003637dac9601a47861c02ce5420bc32d53f2';
-  var KEY = 'rpm_owner_no_count';
-  function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
-  function load() {
-    if (isOwner()) return;
-    var s = document.createElement('script');
-    s.defer = true;
-    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
-    s.setAttribute('data-cf-beacon', JSON.stringify({ token: TOKEN, spa: true }));
-    document.head.appendChild(s);
-  }
-  function note(text) {
-    var show = function () {
-      var d = document.createElement('div');
-      d.textContent = text;
-      d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#222;color:#fff;font:600 15px system-ui,sans-serif;padding:10px 18px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25)';
-      document.body.appendChild(d);
-      setTimeout(function () { d.remove(); }, 4000);
-    };
-    if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
-  }
-  var word = null;
-  try { word = new URLSearchParams(location.search).get('owner'); } catch (e) {}
-  if (!word || !(window.crypto && crypto.subtle)) { load(); return; }
-  crypto.subtle.digest('SHA-256', new TextEncoder().encode(word)).then(function (buf) {
-    var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-    if (hex === OWNER_HASH) {
-      try { localStorage.setItem(KEY, '1'); } catch (e) {}
-      note(isOwner() ? 'Owner: not counted \u2713' : 'Could not save \u2014 this browser blocks storage');
-      try { var u = new URL(location.href); u.searchParams.delete('owner'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
-    }
-    load();
-  }, load);
-})();
-</script>
 </head>
 <body>
 
@@ -271,7 +230,7 @@
       <span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> Guitar
     </h1>
     <p data-i18n="tagline">Colored notes. Colored frets.\nLearn to read and play music.</p>
-    <a href="/guitar/" class="cta">
+    <a href="/guitar/library" class="cta">
       <span data-i18n="launch">Let's go!</span>
     </a>
     <span class="cta-sub" data-i18n="ctaSub"><strong>Free</strong> · runs in your browser · no installation needed</span>

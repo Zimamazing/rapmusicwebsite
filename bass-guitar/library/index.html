@@ -82,6 +82,7 @@
   }
 </script>
 <style>
+  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf?v=2026-10-18') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
@@ -111,10 +112,10 @@
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .logo { display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 32px; }
   .logo img { width: 48px; height: 48px; border-radius: 10px; }
-  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; font-weight: 400; }
+  .brand-logo { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; letter-spacing: 0em; }
   .brand-logo .r { color: var(--c); }
   .brand-logo .p { color: var(--g); }
-  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.04em; text-shadow: -1px -1px 0 #a87b00, 1px -1px 0 #a87b00, -1px 1px 0 #a87b00, 1px 1px 0 #a87b00, -1px 0 0 #a87b00, 1px 0 0 #a87b00, 0 -1px 0 #a87b00, 0 1px 0 #a87b00; }
+  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0; }
   .nav-links { display: flex; align-items: center; gap: 20px; }
   .nav-links a { color: var(--text2); font-size: 15px; }
 
@@ -296,48 +297,6 @@
     #installNudge { display: none !important; }
   }
 </style>
-<script>
-/* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
-   injection so the owner's own devices are never counted (2026-09-24).
-   Opening any page once with ?owner=<word> marks that browser as the
-   owner's; only the word's SHA-256 is stored here. */
-(function () {
-  var TOKEN = '7c17140bb4c54274bc8154a3dd5f89e4';
-  var OWNER_HASH = 'e3b0485486595c4809cda0d11c1003637dac9601a47861c02ce5420bc32d53f2';
-  var KEY = 'rpm_owner_no_count';
-  function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
-  function load() {
-    if (isOwner()) return;
-    var s = document.createElement('script');
-    s.defer = true;
-    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
-    s.setAttribute('data-cf-beacon', JSON.stringify({ token: TOKEN, spa: true }));
-    document.head.appendChild(s);
-  }
-  function note(text) {
-    var show = function () {
-      var d = document.createElement('div');
-      d.textContent = text;
-      d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#222;color:#fff;font:600 15px system-ui,sans-serif;padding:10px 18px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25)';
-      document.body.appendChild(d);
-      setTimeout(function () { d.remove(); }, 4000);
-    };
-    if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
-  }
-  var word = null;
-  try { word = new URLSearchParams(location.search).get('owner'); } catch (e) {}
-  if (!word || !(window.crypto && crypto.subtle)) { load(); return; }
-  crypto.subtle.digest('SHA-256', new TextEncoder().encode(word)).then(function (buf) {
-    var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-    if (hex === OWNER_HASH) {
-      try { localStorage.setItem(KEY, '1'); } catch (e) {}
-      note(isOwner() ? 'Owner: not counted \u2713' : 'Could not save \u2014 this browser blocks storage');
-      try { var u = new URL(location.href); u.searchParams.delete('owner'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
-    }
-    load();
-  }, load);
-})();
-</script>
 </head>
 <body>
 
@@ -731,7 +690,8 @@
   // Title — show "Drum Library" / "Keyboard Library" etc. based on URL instrument.
   // Falls back to the generic translated page title when no instrument in URL.
   (function setLibraryTitle() {
-    const _m = window.location.pathname.match(/^\/([a-z-]+)(?:\/library|library)\/?$/);
+    // (/student/<instrument>/library is the same page for visitors who arrive over the tunnel)
+    const _m = window.location.pathname.replace(/^\/student(?=\/)/, '').match(/^\/([a-z-]+)(?:\/library|library)\/?$/);
     if (_m) {
       const _i = _m[1];
       const _lbl = _i === 'drums' ? 'Drum'
@@ -905,6 +865,16 @@
     contrabass: { min: 40 /* E2 */, max: 79 /* G5 */, clefs: new Set(['treble', 'bass']) },
   };
 
+  // Harmonica (10-hole diatonic, key of C): the chart's hole 4 blow is C5,
+  // but keyboard sheet music is written around C4, so the harmonica page
+  // plays every keyboard song ONE OCTAVE HIGHER (owner, 2026-10-12). A song
+  // qualifies only if EVERY treble note, moved up an octave, is one of the
+  // harp's 19 notes (holes 1-10, blow/draw). A range isn't enough — F5/A4
+  // style gaps sit inside it but aren't on the harp. Keep in step with
+  // HARMONICA_HOLES in /instruments/harmonica.js.
+  const HARMONICA_HARP_PITCHES = [60,62,64,67,71,72,74,76,77,79,81,83,84,86,88,89,91,93,96];
+  const HARMONICA_PITCHES = new Set(HARMONICA_HARP_PITCHES.map(p => p - 12));  // as written on the keyboard
+
   function _midiFromNote(name, octave, accidental) {
     const noteOrder = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
     const accShift = accidental === 'sharp' ? 1
@@ -975,6 +945,20 @@
     }
     // Other instruments — match by tag OR by range fit (clef must match).
     if (tag === instrument) return true;
+    if (instrument === 'harmonica') {
+      if (s.clef !== 'treble' && s.clef !== 'grand') return false;
+      // Key signatures aren't stored per note, so only C major is safe to
+      // read off raw pitches (measure-level key changes are flagged in _pitchSet).
+      if (s.keySig && s.keySig !== 'C') return false;
+      const sets = s._pitchSet;
+      if (!sets || typeof sets !== 'object') return false;
+      let any = false;
+      for (const [staff, list] of Object.entries(sets)) {
+        if (staff === 'bass') continue;   // harmonica reads the treble line only
+        for (const p of list) { any = true; if (!HARMONICA_PITCHES.has(p)) return false; }
+      }
+      return any;
+    }
     const rng = INSTRUMENT_RANGE[instrument];
     if (rng && rng.clefs.has(s.clef) && _songFitsRange(s, rng.min, rng.max, rng.clefs)) return true;
     return false;
@@ -985,10 +969,15 @@
   //   /<EDIT_PATH>/library   → /<EDIT_PATH>/<instr>    (per-instrument edit)
   //   /library               → /<instrument>           (kid play)
   let editPrefix;
-  const _instrPathMatch = window.location.pathname.match(/^\/([a-z-]+)\/library\/?$/);
+  // Over the conductor tunnel the server redirects /<instrument>/library to
+  // /student/<instrument>/library. Keep that /student prefix on every song link (the server
+  // strips it again) — without it the page read /student/keyboard/library as an EDIT path, built
+  // links like /student?song=… and every song opened the orchestra homepage instead.
+  const _studentPrefix = /^\/student\//.test(window.location.pathname) ? '/student' : '';
+  const _instrPathMatch = window.location.pathname.replace(/^\/student(?=\/)/, '').match(/^\/([a-z-]+)\/library\/?$/);
   if (_instrPathMatch) {
     // URL already has the instrument in path → just strip /library
-    editPrefix = '/' + _instrPathMatch[1];
+    editPrefix = _studentPrefix + '/' + _instrPathMatch[1];
   } else if (isAdmin) {
     // /<EDIT_PATH>/library → append instrument unless keyboard (keyboard's
     // edit page is at the bare /<EDIT_PATH>).
@@ -1729,6 +1718,24 @@
             }
           }
         } catch (e) { /* live-sync best-effort; ignore failure */ }
+      }
+      // Harmonica reads the treble line only, so "X" and "X (Grand Staff)"
+      // are the SAME tune there — list each tune once (owner 2026-10-13:
+      // "remove all the duplicates, like hot cross buns (grand staff)").
+      // Keeps the plain version; a "(Grand Staff)" song with no plain twin
+      // stays. Library-only: nothing is deleted from the keyboard library.
+      if (instrument === 'harmonica') {
+        const _grand = /\s*\((?:[^)]*\bgrand\s*staff\b[^)]*)\)\s*$/i;
+        const _key = (t) => String(t || '').replace(_grand, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const _best = new Map();
+        for (const s of allSongs) {
+          const k = _key(s.title);
+          const isGrandCopy = _grand.test(String(s.title || ''));
+          const cur = _best.get(k);
+          if (!cur || (cur.isGrandCopy && !isGrandCopy)) _best.set(k, { s, isGrandCopy });
+        }
+        const keep = new Set([..._best.values()].map(v => v.s));
+        allSongs = allSongs.filter(s => keep.has(s));
       }
     } catch (e) {
       allSongs = [];
