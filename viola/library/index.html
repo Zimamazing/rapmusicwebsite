@@ -117,6 +117,9 @@
   .brand-logo .p { color: var(--g); }
   .brand-logo .amp { display: inline-block; color: var(--e); margin: 0; transition: transform 0.2s; }
   .brand-logo .amp:hover { transform: translateY(-6px) rotate(-6deg); }
+  .brand-logo .note, .brand-logo .amp, .brand .note, .brand .amp { display: inline-block; transition: transform 0.2s; }
+  .brand-logo .note:hover, .brand-logo .amp:hover, .brand .note:hover, .brand .amp:hover { transform: translateY(-6px) rotate(-6deg); }
+  .n-r { color: var(--c); } .n-e { color: var(--d); } .n-a { color: var(--e); } .n-d { color: var(--f); } .n-p { color: var(--g); } .n-l { color: var(--a); } .n-y { color: var(--b); }
   .nav-links { display: flex; align-items: center; gap: 20px; }
   .nav-links a { color: var(--text2); font-size: 15px; }
 
@@ -307,7 +310,7 @@
   <div class="container nav">
     <div class="logo">
       <img src="/landing/icon.png?v=2026-05-26" alt="R&P Music logo">
-      <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span>
+      <span class="brand-logo"><span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="note amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> <span class="note">M</span><span class="note">u</span><span class="note">s</span><span class="note">i</span><span class="note">c</span></span>
     </div>
     <nav class="nav-links">
       <a href="/" data-i18n="navHome">Home</a>
@@ -1190,7 +1193,7 @@
     rpBtn.appendChild(rpImg);
     const rpBrand = document.createElement('span');
     rpBrand.className = 'brand-logo';
-    rpBrand.innerHTML = '<span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music';
+    rpBrand.innerHTML = '<span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="note amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> <span class="note">M</span><span class="note">u</span><span class="note">s</span><span class="note">i</span><span class="note">c</span>';
     rpBtn.appendChild(rpBrand);
     if (showCounts) rpBtn.appendChild(document.createTextNode(' (' + rpCount + ')'));
     rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
@@ -1373,7 +1376,7 @@
       els.emptyMsg.innerHTML = tab === 'all'
         ? (isAdmin && searchQuery ? `No songs match "${escape(searchQuery)}".` : escape(tr('emptyAll')))
         : tab === 'rpmusic'
-          ? 'No <span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span> songs yet.'
+          ? 'No <span class="brand-logo"><span class="note n-r">R</span><span class="note n-e">e</span><span class="note n-a">a</span><span class="note n-d">d</span><span class="note amp">&amp;</span><span class="note" style="color:#3b82f6">P</span><span class="note" style="color:#6366f1">l</span><span class="note" style="color:#8b5cf6">a</span><span class="note" style="color:#ec4899">y</span> <span class="note">M</span><span class="note">u</span><span class="note">s</span><span class="note">i</span><span class="note">c</span></span> songs yet.'
           : tab === 'unpublished'
             ? 'No unpublished songs.'
             : escape(tr('emptyProfile', {name: tab}));
