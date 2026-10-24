@@ -2,7 +2,7 @@
   "name": "Read & Play Music",
   "short_name": "R&P Music",
   "description": "Learn to read music by playing — colored notes, rainbow tracker, and songs from around the world. Free in your browser.",
-  "start_url": "/piano/",
+  "start_url": "/keyboard/",
   "scope": "/",
   "display": "fullscreen",
   "orientation": "landscape",
