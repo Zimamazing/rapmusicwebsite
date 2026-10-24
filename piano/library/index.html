@@ -852,7 +852,7 @@
   const instrumentParam = _queryInstrument || _pathInstrument;
   const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
   // Guitar library: Home → the guitar landing page, Launch app → the guitar
-  // app (both were hard-wired to the piano's "/" and "/piano"; owner
+  // app (both were hard-wired to the piano's "/" and "/keyboard"; owner
   // 2026-09-29).
   if (instrument === 'guitar') {
     const _home = document.querySelector('a[data-i18n="navHome"]');
@@ -1034,7 +1034,7 @@
     const base = window.location.pathname.replace(/\/library\/?$/, '');
     const _trail = '/' + instrument;
     const _baseStripped = base.endsWith(_trail) ? base.slice(0, -_trail.length) : base;
-    editPrefix = instrument === 'keyboard' ? _baseStripped : (_baseStripped + '/' + instrument);
+    editPrefix = instrument === 'keyboard' ? _baseStripped.replace(/\/piano$/, '') : (_baseStripped + '/' + instrument);
   } else {
     editPrefix = '/' + instrument;
   }
@@ -1077,7 +1077,7 @@
     ? (activeName && profiles[activeName] ? activeName : 'all')
     : 'all';
   // ?folder=<name> URL param — when a pill on another library deep-links
-  // here ("/piano/library?folder=Michael+Aaron+Lessons+Book+1"), open
+  // here ("/keyboard/library?folder=Michael+Aaron+Lessons+Book+1"), open
   // that folder's tab on load instead of the default "All Songs" view.
   const _folderParam = new URLSearchParams(window.location.search).get('folder');
   if (_folderParam) tab = 'folder:' + _folderParam;
@@ -1474,7 +1474,7 @@
 
       const link = document.createElement('a');
       link.className = 'link';
-      // Kid play gets a clean URL — /keyboard/jinglebells. The edit page
+      // Kid play gets a clean URL — /piano/jinglebells. The edit page
       // keeps ?song= (it resolves unpublished drafts by exact title). Non-Latin
       // titles keep their script (君が代 → /keyboard/君が代). Same slug rule
       // as songSlug in index.html and scripts/release-to-public.{sh,mjs}.
