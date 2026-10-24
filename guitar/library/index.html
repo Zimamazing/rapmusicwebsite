@@ -356,7 +356,7 @@
     </div>
     <nav class="nav-links">
       <a href="/" data-i18n="navHome">Home</a>
-      <a href="/keyboard" data-i18n="navLaunchApp">Launch app</a>
+      <a href="/piano" data-i18n="navLaunchApp">Launch app</a>
     </nav>
   </div>
   <div class="container">
@@ -852,7 +852,7 @@
   const instrumentParam = _queryInstrument || _pathInstrument;
   const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
   // Guitar library: Home → the guitar landing page, Launch app → the guitar
-  // app (both were hard-wired to the piano's "/" and "/keyboard"; owner
+  // app (both were hard-wired to the piano's "/" and "/piano"; owner
   // 2026-09-29).
   if (instrument === 'guitar') {
     const _home = document.querySelector('a[data-i18n="navHome"]');
@@ -1077,7 +1077,7 @@
     ? (activeName && profiles[activeName] ? activeName : 'all')
     : 'all';
   // ?folder=<name> URL param — when a pill on another library deep-links
-  // here ("/keyboard/library?folder=Michael+Aaron+Lessons+Book+1"), open
+  // here ("/piano/library?folder=Michael+Aaron+Lessons+Book+1"), open
   // that folder's tab on load instead of the default "All Songs" view.
   const _folderParam = new URLSearchParams(window.location.search).get('folder');
   if (_folderParam) tab = 'folder:' + _folderParam;
