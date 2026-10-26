@@ -7,6 +7,7 @@
 <link rel="icon" href="icon.png?v=2026-05-26">
 <link href="https://fonts.googleapis.com/css2?family=Chicle&display=swap" rel="stylesheet">
 <style>
+  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf?v=2026-10-25') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
@@ -14,10 +15,14 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
-  .brand-logo { font-family: 'Chicle', cursive; letter-spacing: 0.05em; font-weight: 400; }
+  .brand-logo { font-family: 'Bass Font Straightened', 'DM Sans', sans-serif; font-weight: 400; font-synthesis: none; letter-spacing: 0em; }
   .brand-logo .r { color: var(--c); }
   .brand-logo .p { color: var(--g); }
-  .brand-logo .amp { display: inline-block; color: var(--e); margin: 0 -0.04em; text-shadow: -1px -1px 0 #a87b00, 1px -1px 0 #a87b00, -1px 1px 0 #a87b00, 1px 1px 0 #a87b00, -1px 0 0 #a87b00, 1px 0 0 #a87b00, 0 -1px 0 #a87b00, 0 1px 0 #a87b00; }
+  .brand-logo .amp { display: inline-block; color: #eab308; margin: 0; transition: transform 0.2s; }
+  .brand-logo .amp:hover { transform: translateY(-6px) rotate(-6deg); }
+  .brand-logo .note, .brand-logo .amp, .brand .note, .brand .amp { display: inline-block; transition: transform 0.2s; }
+  .brand-logo .note:hover, .brand-logo .amp:hover, .brand .note:hover, .brand .amp:hover { transform: translateY(-6px) rotate(-6deg); }
+  .n-r { color: var(--c); } .n-e { color: var(--d); } .n-a { color: #eab308; } .n-d { color: var(--f); } .n-p { color: var(--g); } .n-l { color: var(--a); } .n-y { color: var(--b); }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .rainbow { display: flex; height: 6px; }
@@ -85,7 +90,7 @@
 <div class="container">
   <a href="/" class="back" data-i18n="backHome">← Back to home</a>
   <h1 data-i18n="pageTitle">Privacy</h1>
-  <p data-i18n="intro"><span class="brand-logo"><span class="r">R</span><span class="amp">&amp;</span><span class="p">P</span> Music</span> is designed for kids and families. We keep things simple.</p>
+  <p data-i18n="intro"><span class="brand-logo"><span class="note r">R</span><span class="note amp">&amp;</span><span class="note p">P</span> <span class="note">M</span><span class="note">u</span><span class="note">s</span><span class="note">i</span><span class="note">c</span></span> is designed for kids and families. We keep things simple.</p>
 
   <h2 data-i18n="h_collect">What we collect</h2>
   <p data-i18n="p_collect">No email, name, age, or account needed to use the app. We count anonymous page views via Cloudflare Web Analytics so we can see which songs and features people use — no cookies, no personal information, no cross-site tracking, no advertising.</p>
