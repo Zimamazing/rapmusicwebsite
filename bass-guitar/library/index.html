@@ -1261,7 +1261,7 @@
       const lessBtn = button('🎓 Lessons' + (showCounts ? ' (' + lessN + ')' : ''), 'tab lessons' + (tab === 'lessons' ? ' active' : ''));
       if (tab === 'lessons') lessBtn.style.background = 'var(--accent)';
       lessBtn.onclick = () => { tab = 'lessons'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-      els.tabs.appendChild(lessBtn);
+      if (isAdmin) els.tabs.appendChild(lessBtn);  // hidden from the public (owner 2026-10-27)
     }
 
     // Dev-only folder pills. One pill per known curriculum folder. Pills
