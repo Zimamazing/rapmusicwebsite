@@ -82,7 +82,7 @@
   }
 </script>
 <style>
-  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf?v=2026-10-25') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Bass Font Straightened'; src: url('/public/fonts/BassFont-Straightened.ttf?v=2026-10-31') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
   :root {
     --c: #dc2626; --d: #f97316; --e: #fde047; --f: #22c55e;
     --g: #3b82f6; --a: #a855f7; --b: #ec4899;
@@ -367,6 +367,27 @@
 <main class="container">
   <h1>📚 <span data-i18n="pageTitle">Song Library</span></h1>
   <p class="subtitle" id="subtitle" data-i18n="subtitle">Pick a song to play.</p>
+
+  <!-- Conductor rehearsal (owner 2026-10-20): start it here and give every
+       student the code BEFORE picking a song; it lasts until End rehearsal. -->
+  <div id="rehearsalBar" style="display:none;margin:4px 0 14px;gap:10px;align-items:center;flex-wrap:wrap">
+    <button id="rehearsalBtn" type="button" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #d4d4d8;background:#fff;font-weight:700;font-size:15px;font-family:inherit;cursor:pointer"></button>
+    <span id="rehearsalNote" style="color:#555;font-size:14px"></span>
+  </div>
+  <div id="rehearsalPop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5000;align-items:center;justify-content:center">
+    <div style="background:#fff;color:#1a1a1a;border-radius:20px;padding:28px 36px;text-align:center;max-width:520px">
+      <div style="font-size:18px;font-weight:700">Rehearsal is open</div>
+      <div style="font-size:15px;margin-top:14px">On each tablet, open</div>
+      <div id="rehearsalUrl" style="font-size:20px;font-weight:700;margin-top:6px;word-break:break-all"></div>
+      <div style="font-size:15px;margin-top:14px">and enter this code</div>
+      <div id="rehearsalCode" style="font-size:64px;font-weight:800;letter-spacing:.18em;margin-top:4px"></div>
+      <div style="font-size:13px;color:#555;margin-top:8px">Same Wi-Fi as this computer. The code stays the same for every song until you end the rehearsal.</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
+        <button id="rehearsalDone" type="button" style="height:40px;padding:0 18px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Done</button>
+        <button id="rehearsalEnd" type="button" style="height:40px;padding:0 18px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#b91c1c;font-weight:700;font-size:15px;cursor:pointer">End rehearsal</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Big rainbow site-deploy button. Owner-only (admin mode); hidden by
        default, JS unhides it when window.__RPM_LIBRARY_ADMIN__ === true.
@@ -851,9 +872,55 @@
   const _pathInstrument = _pathMatch ? _pathMatch[1].toLowerCase() : '';
   const instrumentParam = _queryInstrument || _pathInstrument;
   const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
+  if (instrument === 'conductor') (function () {
+    const $ = (id) => document.getElementById(id);
+    const bar = $('rehearsalBar'), btn = $('rehearsalBtn'), pop = $('rehearsalPop');
+    let code = null;
+    const paint = () => {
+      btn.textContent = code ? '📡 ' + code : '📡 Start rehearsal';
+      btn.style.background = code ? '#16a34a' : '#fff'; btn.style.color = code ? '#fff' : '#1a1a1a';
+      btn.style.borderColor = code ? '#16a34a' : '#d4d4d8';
+      $('rehearsalNote').textContent = code ? 'Rehearsal on: students join with this code. Now pick a song.' : '';
+    };
+    const show = async () => {
+      let lan = location.hostname;
+      try { const h = await (await fetch('/conductor/api/host', { cache: 'no-store' })).json(); if (h && h.lan) lan = h.lan; } catch (e) {}
+      $('rehearsalUrl').textContent = 'http://' + lan + ':' + (location.port || 8080) + '/conductor/join';
+      $('rehearsalCode').textContent = code; pop.style.display = 'flex';
+    };
+    btn.onclick = async () => {
+      if (code) return show();
+      try { const j = await (await fetch('/conductor/api/rehearsal-start', { method: 'POST' })).json(); code = j && j.code; } catch (e) {}
+      paint(); if (code) show();
+    };
+    $('rehearsalDone').onclick = () => { pop.style.display = 'none'; };
+    pop.onclick = (e) => { if (e.target === pop) pop.style.display = 'none'; };
+    $('rehearsalEnd').onclick = async () => {
+      try { await fetch('/conductor/api/rehearsal-end', { method: 'POST' }); } catch (e) {}
+      code = null; pop.style.display = 'none'; paint();
+    };
+    // Only where the rehearsal server exists (the Mac); elsewhere the bar stays hidden.
+    fetch('/conductor/api/joincode', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { code = j && j.active ? j.code : null; paint(); bar.style.display = 'flex'; }).catch(() => {});
+  })();
   // Guitar library: Home → the guitar landing page, Launch app → the guitar
   // app (both were hard-wired to the piano's "/" and "/keyboard"; owner
   // 2026-09-29).
+  // Conductor library (owner 2026-10-22): Home goes back to the readandplaymusic.app
+  // homepage (the gallery with the Conductor card), and the piano is one click away.
+  if (instrument === 'conductor') {
+    const _home = document.querySelector('a[data-i18n="navHome"]');
+    if (_home) _home.setAttribute('href', '/');
+    const _app = document.querySelector('a[data-i18n="navLaunchApp"]');
+    if (_app) {
+      const _pi = document.createElement('a');
+      _pi.href = '/piano'; _pi.textContent = '🎹 Piano';
+      _app.parentNode.insertBefore(_pi, _app);
+      _app.setAttribute('href', '/conductor');
+      _app.removeAttribute('data-i18n');
+      _app.textContent = 'Live session';
+    }
+  }
   if (instrument === 'guitar') {
     const _home = document.querySelector('a[data-i18n="navHome"]');
     if (_home) _home.setAttribute('href', '/guitar/');   // the guitar home page is /guitar (owner 2026-10-28)
@@ -1036,8 +1103,11 @@
     const _baseStripped = base.endsWith(_trail) ? base.slice(0, -_trail.length) : base;
     editPrefix = instrument === 'keyboard' ? _baseStripped.replace(/\/piano$/, '') : (_baseStripped + '/' + instrument);
   } else {
-    editPrefix = '/' + instrument;
+    editPrefix = '/' + (instrument === 'keyboard' ? 'piano' : instrument);   // the piano's address says piano (owner 2026-10-22)
   }
+  // Conductor scores open in the VIEW-ONLY score page, never the editor
+  // (owner 2026-10-19: "do not open it in the edit page").
+  if (instrument === 'conductor') editPrefix = _studentPrefix + '/conductor/play';
 
   // --- Embed mode ---
   // When the library is rendered inside the main app's iframe overlay,
@@ -1217,6 +1287,9 @@
     // the counts are hidden because public visitors don't need to see them.
     const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
+    // A pill shows for visitors only when at least ONE of its songs is published
+    // live (owner 2026-10-22); the owner's admin view always shows every pill.
+    const _pillShows = (inPill) => isAdmin || allSongs.some(s => inPill(s) && _isPublic(s));
     const allCount = allSongs.filter(s =>
       _isShown(s) && !s.folder && !(instrument === 'keyboard' && s.lessonPill === true)
     ).length;
@@ -1241,7 +1314,7 @@
     rpBtn.appendChild(rpBrand);
     if (showCounts) rpBtn.appendChild(document.createTextNode(' (' + rpCount + ')'));
     rpBtn.onclick = () => { tab = 'rpmusic'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-    els.tabs.appendChild(rpBtn);
+    if (_pillShows(s => ((s.composer || '').toLowerCase()).includes('r&p music'))) els.tabs.appendChild(rpBtn);
 
     // Admin-only: "Unpublished" pill — quick scan of songs not yet on
     // the live site. Hidden in baby/public mode.
@@ -1250,8 +1323,19 @@
       const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
       const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
       if (tab === 'unpublished') unpubBtn.style.background = 'var(--accent)';
-      unpubBtn.onclick = () => { tab = 'unpublished'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+      unpubBtn.onclick = () => { tab = 'unpublished'; unpubKind = 'all'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
       els.tabs.appendChild(unpubBtn);
+      if (tab === 'unpublished') {
+        const kinds = [['all', 'All unpublished'], ['mxl', '📁 MXL files'], ['pdf-app', '📁 PDF from Finale / music apps'], ['pdf-book', '📁 PDF from books'], ['other', '📁 Other songs']];
+        kinds.forEach(([k, label]) => {
+          const n = allSongs.filter(s => !_isShown(s) && (k === 'all' || _kindOf(s) === k)).length;
+          if (k !== 'all' && !n) return;
+          const b = button('↳ ' + label + ' (' + n + ')', 'tab' + (unpubKind === k ? ' active' : ''));
+          if (unpubKind === k) b.style.background = 'var(--accent)';
+          b.onclick = () => { unpubKind = k; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+          els.tabs.appendChild(b);
+        });
+      }
     }
     // Piano only: "Lessons" pill (owner 2026-10-22): songs tagged lessonPill, easiest first.
     // Public too — visitors see only lesson songs that are on the live site (the gate);
@@ -1261,9 +1345,8 @@
       const lessBtn = button('🎓 Lessons' + (showCounts ? ' (' + lessN + ')' : ''), 'tab lessons' + (tab === 'lessons' ? ' active' : ''));
       if (tab === 'lessons') lessBtn.style.background = 'var(--accent)';
       lessBtn.onclick = () => { tab = 'lessons'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-      if (isAdmin) els.tabs.appendChild(lessBtn);  // hidden from the public (owner 2026-10-27)
+      if (isAdmin || (pillCfg.lessonsPublic && _pillShows(s => s.lessonPill === true))) els.tabs.appendChild(lessBtn);
     }
-
     // Dev-only folder pills. One pill per known curriculum folder. Pills
     // are localhost-only (hidden on the deployed site) so the live library
     // stays flat. Clicking the pill filters the song list to that folder.
@@ -1292,7 +1375,7 @@
           // no redirect to lessons and no password prompt on the
           // edit page.
           fBtn.onclick = () => { tab = tabKey; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-          els.tabs.appendChild(fBtn);
+          if (_pillShows(s => s.folder === f.dir)) els.tabs.appendChild(fBtn);
         }
       }
     }
@@ -1311,6 +1394,14 @@
   // The big rainbow site-deploy bar stays hidden (owner 2026-09-23); the per-song
   // 🚀 Publish Live is back (owner 2026-10-07) and no longer reads this flag.
   var SHOW_SITE_DEPLOY_BUTTONS = false;
+  // Which pills the PUBLIC may see (owner 2026-10-22: "hide, do not remove").
+  // Stored with the songs in _pills.json, shipped to the live site as /api/pills.
+  // Missing or unreadable = hidden. The owner's admin view always sees every pill.
+  var pillCfg = { lessonsPublic: false };
+  fetch('/api/pills', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
+    if (j && typeof j === 'object') pillCfg = Object.assign({ lessonsPublic: false }, j);
+    try { renderTabs(); renderAlphabet(); renderSongs(); } catch (e) {}
+  }).catch(() => {});
 
   function _isPublic(s) {
     if (!s) return false;
@@ -1322,7 +1413,14 @@
   // means lessons. The public site has no admin view and keeps the website flag.
   function _inLessons(s) { return !!s && (s.published === true || s.published === 'true'); }
   function _isShown(s) { return isAdmin ? _inLessons(s) : _isPublic(s); }
-  function _lessonOk(s) { return !!s && s.lessonPill === true && (isAdmin || _isPublic(s)); }
+  // Folders inside Unpublished (owner 2026-10-22): where a transcribed song came from.
+  var unpubKind = 'all';
+  function _kindOf(s) {
+    if (s.sourceKind) return s.sourceKind;
+    return 'other';
+  }
+  function _lessonOk(s) { return !!s && s.lessonPill === true && (isAdmin || (pillCfg.lessonsPublic && _isPublic(s))); }
+  function _unpubOk(s) { return !_isShown(s) && (unpubKind === 'all' || _kindOf(s) === unpubKind); }
 
   // --- Render: A-Z filter strip ---
   // A–Z letter strip hidden until every letter has songs (owner
@@ -1337,7 +1435,7 @@
     if (tab === 'rpmusic') {
       pool = pool.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      pool = pool.filter(s => !_isShown(s));
+      pool = pool.filter(_unpubOk);
     } else if (tab === 'lessons') {
       pool = pool.filter(_lessonOk);
     } else if (tab !== 'all' && profiles[tab]) {
@@ -1381,7 +1479,7 @@
     if (tab === 'rpmusic') {
       visible = visible.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music'));
     } else if (tab === 'unpublished') {
-      visible = visible.filter(s => !_isShown(s));
+      visible = visible.filter(_unpubOk);
     } else if (tab === 'lessons') {
       visible = visible.filter(_lessonOk);
     } else if (tab && tab.startsWith('folder:')) {
@@ -1396,6 +1494,8 @@
       // serves only songs that are published AND not in a private folder,
       // so apply that filter here. Unpublished + folder songs still show
       // under their dedicated pills.
+      // The conductor library is private to the owner: every score shows,
+      // published or not (uploads from the conductor page land here too).
       visible = visible.filter(s =>
         _isShown(s) && !s.folder && !(instrument === 'keyboard' && s.lessonPill === true)
       );
@@ -1481,7 +1581,7 @@
       const slug = title.normalize('NFD').replace(/([A-Za-z])[\u0300-\u036f]+/g, '$1')
         .replace(/#/g, 'sharp').replace(/♭/g, 'flat').toLowerCase()
         .replace(/[^\p{L}\p{N}\p{M}]/gu, '').normalize('NFC');
-      link.href = (isAdmin || !slug)
+      link.href = (isAdmin || !slug || instrument === 'conductor')
         ? editPrefix + '?song=' + encodeURIComponent(title)
         : editPrefix + '/' + slug;
       link.dataset.title = title;
@@ -1542,6 +1642,7 @@
             });
             if (!resp.ok) throw new Error(await resp.text());
             song.published = !isPub;
+            try { const j = await resp.json(); if (j && j.title) { song.title = j.title; if (j.filename) song._filename = j.filename; } } catch (e2) {}
             renderTabs();
             renderSongs();
           } catch (err) {

@@ -202,7 +202,64 @@
       render();
       setInterval(render, 1500);
     }
-    function init() { start(); control(); }
+    // ↶ Undo / ↷ Redo Claude's changes (owner 2026-10-20: "a tab where i can just
+    // undo what you did ... and there should also be a forward button"). Dev pages
+    // only. Each step is one change Claude made (scripts/claude-checkpoint.py);
+    // Undo takes back only Claude's lines, so other windows' edits stay.
+    function undoTab() {
+      var box = document.createElement('div');
+      box.id = 'rpm-claude-undo';
+      box.style.cssText = 'position:fixed;bottom:52px;left:12px;z-index:9000;display:flex;gap:4px;align-items:center;'
+        + 'font:600 12px system-ui,-apple-system,sans-serif;background:#fff;border:1px solid #cbd5e1;border-radius:8px;'
+        + 'padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.15);color:#1a1a1a;';
+      var lab = document.createElement('span'); lab.textContent = 'Claude'; lab.style.cssText = 'padding:0 4px;color:#64748b;';
+      function mk(txt) { var b = document.createElement('button'); b.textContent = txt;
+        b.style.cssText = 'font:inherit;padding:4px 9px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;';
+        return b; }
+      var u = mk('\u21B6 Undo'), r = mk('Redo \u21B7');
+      box.appendChild(lab); box.appendChild(u); box.appendChild(r);
+      function show(st) {
+        u.disabled = !st.undo; r.disabled = !st.redo;
+        u.style.opacity = st.undo ? '1' : '.4'; r.style.opacity = st.redo ? '1' : '.4';
+        u.title = st.undo ? 'Undo: ' + st.undo : 'Nothing to undo';
+        r.title = st.redo ? 'Redo: ' + st.redo : 'Nothing to redo';
+      }
+      function refresh() {
+        fetch('/api/dev/checkpoints', { cache: 'no-store', credentials: 'same-origin' })
+          .then(function (x) { return x.json(); }).then(show).catch(function () { box.style.display = 'none'; });
+      }
+      function go(cmd) {
+        fetch('/api/dev/checkpoints/' + cmd, { method: 'POST', credentials: 'same-origin', headers: { 'X-RPM-Dev': '1' } })
+          .then(function (x) { return x.json(); })
+          .then(function (st) {
+            show(st);
+            if (st.ok) location.reload();
+            else if (st.message) alert(st.message);
+          }).catch(function () {});
+      }
+      u.onclick = function () { go('undo'); };
+      r.onclick = function () { go('redo'); };
+      document.body.appendChild(box);
+      // On the conductor it sits in the toolbar, between Full screen and the
+      // metronome (owner 2026-10-21), styled like the toolbar's buttons.
+      var floating = box.style.cssText;
+      function place() {
+        var slot = document.getElementById('rpm-undo-slot');
+        if (slot && box.parentNode !== slot) {
+          slot.appendChild(box);
+          box.style.cssText = 'display:flex;gap:2px;align-items:center;height:40px;box-sizing:border-box;padding:0 3px;'
+            + 'font:700 12px "DM Sans",system-ui,sans-serif;background:var(--bg3,#f1f5f9);border:1px solid var(--border,#cbd5e1);'
+            + 'border-radius:8px;color:var(--text,#1a1a1a);white-space:nowrap;';
+          lab.style.padding = '0 2px'; lab.style.fontSize = '11px';
+          [u, r].forEach(function (b) { b.style.height = '30px'; b.style.padding = '0 6px'; b.style.background = '#fff'; });
+        } else if (!slot && box.parentNode !== document.body) {
+          document.body.appendChild(box); box.style.cssText = floating;
+        }
+      }
+      place(); setInterval(place, 700);
+      refresh(); setInterval(refresh, 3000);
+    }
+    function init() { start(); control(); undoTab(); }
     if (document.readyState === 'complete') init();
     else window.addEventListener('load', init);
   })();
@@ -239,7 +296,15 @@
       #rotate-overlay { display: flex; }
       #root { display: none; }
     }
+    /* Conductor + players' tablets work in portrait too (owner 2026-10-20). */
+    html.rp-conductor #rotate-overlay { display: none !important; }
+    html.rp-conductor #root { display: block !important; }
   </style>
+  <script>if (window.__RPM_CONDUCTOR__ === true) document.documentElement.classList.add('rp-conductor');
+  // The conductor score page with no song chosen is just an empty "Untitled
+  // Score" — send it to the conductor's song library instead (owner 2026-10-20).
+  try { if (window.__RPM_CONDUCTOR__ === true && /^\/conductor\/play\/?$/.test(location.pathname)
+            && !new URLSearchParams(location.search).get('song')) location.replace('/conductor/library'); } catch (e) {}</script>
 <script>
 /* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
    injection so the owner's own devices are never counted (2026-09-24).
@@ -377,6 +442,79 @@
       },
     };
   </script>
-  <script src="app.js?v449-1792973922" defer></script>
+  <script>/* ScoreFile: copied verbatim from scripts/score-file.js (scripts/score-file.test.js checks they match). */
+// Reads a MusicXML score from .mxl, .musicxml or .xml and returns its XML text
+// exactly as stored in the file. Nothing in the score is changed or added.
+//
+//   const { xmlText, format } = await ScoreFile.read(file, { JSZip });
+//
+// Throws an Error with a plain message for anything that is not a MusicXML score.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.ScoreFile = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  const EXTENSIONS = ['.mxl', '.musicxml', '.xml'];
+
+  function extensionOf(name) {
+    const m = /\.[^./\\]+$/.exec(String(name || '').toLowerCase());
+    return m ? m[0] : '';
+  }
+
+  // Bytes -> text. Handles UTF-8 (with or without BOM) and UTF-16 (BOM present).
+  function decode(bytes) {
+    if (bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+    if (bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+    return new TextDecoder('utf-8').decode(bytes).replace(/^﻿/, '');
+  }
+
+  // A MusicXML score has <score-partwise> or <score-timewise> as its root element.
+  function isMusicXml(text) {
+    const head = text
+      .replace(/<\?xml[\s\S]*?\?>/g, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<!DOCTYPE[^>[]*(\[[\s\S]*?\])?\s*>/gi, '');
+    return /^\s*<score-(partwise|timewise)[\s>]/.test(head);
+  }
+
+  async function readMxl(bytes, JSZip) {
+    if (!JSZip) throw new Error('JSZip is needed to open .mxl files');
+    let zip;
+    try { zip = await JSZip.loadAsync(bytes); }
+    catch (e) { throw new Error('This .mxl file is not a valid zip archive'); }
+    let mainPath = null;
+    const container = zip.file('META-INF/container.xml');
+    if (container) {
+      const cx = await container.async('string');
+      const m = /<rootfile\b[^>]*\bfull-path\s*=\s*["']([^"']+)["']/.exec(cx);
+      if (m) mainPath = m[1];
+    }
+    if (!mainPath || !zip.file(mainPath)) {
+      mainPath = Object.keys(zip.files).find(n =>
+        /\.(xml|musicxml)$/i.test(n) && !n.startsWith('META-INF/') && !zip.files[n].dir);
+    }
+    if (!mainPath) throw new Error('No MusicXML score found inside this .mxl file');
+    return decode(await zip.file(mainPath).async('uint8array'));
+  }
+
+  async function read(file, opts) {
+    const ext = extensionOf(file && file.name);
+    if (!EXTENSIONS.includes(ext)) {
+      throw new Error('Only .mxl, .musicxml and .xml files can be added here');
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    // A zip starts with "PK". Trust the content over the extension, so an .xml
+    // that is really a zipped .mxl (or the reverse) still opens correctly.
+    const zipped = bytes[0] === 0x50 && bytes[1] === 0x4B;
+    const xmlText = zipped ? await readMxl(bytes, opts && opts.JSZip) : decode(bytes);
+    if (!isMusicXml(xmlText)) {
+      throw new Error('This file is not a MusicXML score (it needs a score-partwise or score-timewise root)');
+    }
+    return { xmlText, format: zipped ? 'mxl' : (ext === '.musicxml' ? 'musicxml' : 'xml') };
+  }
+
+  return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
+});
+  </script>
+  <script src="app.js?v449-1793507758" defer></script>
 </body>
 </html>
