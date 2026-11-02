@@ -911,15 +911,14 @@
   // homepage (the gallery with the Conductor card), and the piano is one click away.
   if (instrument === 'conductor') {
     const _home = document.querySelector('a[data-i18n="navHome"]');
-    if (_home) _home.setAttribute('href', '/');
+    if (_home) _home.setAttribute('href', location.hostname === 'readandplaymusic.app' ? '/conductor' : '/');
     const _app = document.querySelector('a[data-i18n="navLaunchApp"]');
     if (_app) {
       const _pi = document.createElement('a');
       _pi.href = '/piano'; _pi.textContent = '🎹 Piano';
       _app.parentNode.insertBefore(_pi, _app);
-      _app.setAttribute('href', '/conductor');
-      _app.removeAttribute('data-i18n');
-      _app.textContent = 'Live session';
+      // (the old "Live session" sync page is retired - owner 2026-10-30)
+      _app.remove();
     }
   }
   if (instrument === 'guitar') {
