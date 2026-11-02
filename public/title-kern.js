@@ -40,6 +40,9 @@
   }
 
   function run() {
+    // Measure fresh each time: an earlier run may have measured the stand-in
+    // font before the title font finished loading.
+    cache = {};
     var boxes = document.querySelectorAll('.note, .amp');
     for (var i = 0; i < boxes.length; i++) {
       var a = boxes[i];
