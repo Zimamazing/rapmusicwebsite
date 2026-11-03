@@ -302,6 +302,10 @@
     /* (any touch screen - an iPad with a trackpad keyboard or a pencil may report a fine pointer - is a phone or
        tablet: never the message) */
     html.rp-touch #rotate-overlay { display: none !important; }
+    /* Instant button labels (owner 2026-11-03: "all the labels should appear right away"). */
+    #rp-instant-tip { position: fixed; z-index: 100000; pointer-events: none; display: none;
+      background: #1f2937; color: #fff; font: 600 12px/1.25 system-ui, -apple-system, sans-serif;
+      padding: 5px 8px; border-radius: 6px; white-space: nowrap; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
     html.rp-touch #root { display: block !important; }
     /* Conductor + players' tablets work in portrait too (owner 2026-10-20). */
     html.rp-conductor #rotate-overlay { display: none !important; }
@@ -313,6 +317,45 @@
   // Score" — send it to the conductor's song library instead (owner 2026-10-20).
   try { if (window.__RPM_CONDUCTOR__ === true && /^\/conductor\/play\/?$/.test(location.pathname)
             && !new URLSearchParams(location.search).get('song')) location.replace('/conductor/library'); } catch (e) {}</script>
+  <script>
+  // Instant labels (owner 2026-11-03, live from v451): pointing at a button shows its name
+  // straight away, instead of the browser's slow tooltip. The button's title moves into
+  // data-tip while the pointer is on it so the browser's own label never appears too.
+  (function () {
+    try {
+      // Mouse or trackpad only: phones and tablets keep their look.
+      if (!window.matchMedia || !matchMedia('(hover: hover)').matches) return;
+      var SEL = 'button, select, input, a, [role="button"], label';
+      var tip = null, cur = null;
+      function show(el) {
+        var t = el.getAttribute('title');
+        if (t) { el.setAttribute('data-tip', t); el.removeAttribute('title'); }
+        var text = el.getAttribute('data-tip');
+        if (!text) return;
+        if (!tip) { tip = document.createElement('div'); tip.id = 'rp-instant-tip'; document.body.appendChild(tip); }
+        tip.textContent = text; tip.style.display = 'block';
+        var r = el.getBoundingClientRect(), w = tip.offsetWidth, hh = tip.offsetHeight;
+        var x = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2));
+        var y = r.bottom + 6; if (y + hh > innerHeight - 4) y = r.top - hh - 6;
+        tip.style.left = x + 'px'; tip.style.top = y + 'px';
+        cur = el;
+      }
+      function hide() {
+        if (cur && cur.getAttribute('data-tip') && !cur.hasAttribute('title') && !cur.hasAttribute('data-tip-keep')) cur.setAttribute('title', cur.getAttribute('data-tip'));
+        cur = null; if (tip) tip.style.display = 'none';
+      }
+      document.addEventListener('mouseover', function (e) {
+        var el = e.target && e.target.closest ? e.target.closest(SEL) : null;
+        if (el && !el.hasAttribute('title') && !el.hasAttribute('data-tip')) el = null;
+        if (el === cur) return;
+        hide(); if (el) show(el);
+      }, true);
+      document.addEventListener('mousedown', hide, true);
+      document.addEventListener('scroll', hide, true);
+      window.addEventListener('blur', hide);
+    } catch (e) {}
+  })();
+  </script>
 <script>
 /* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
    injection so the owner's own devices are never counted (2026-09-24).
@@ -521,6 +564,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="app.js?v450-1793737586" defer></script>
+  <script src="app.js?v451-1793738040" defer></script>
 </body>
 </html>
