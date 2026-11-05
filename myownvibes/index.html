@@ -326,7 +326,7 @@
     /* Instant button labels (owner 2026-11-03: "all the labels should appear right away"). */
     #rp-instant-tip { position: fixed; z-index: 100000; pointer-events: none; display: none;
       background: #1f2937; color: #fff; font: 600 12px/1.25 system-ui, -apple-system, sans-serif;
-      padding: 5px 8px; border-radius: 6px; white-space: nowrap; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+      padding: 5px 8px; border-radius: 6px; white-space: normal; width: max-content; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
     html.rp-touch #root { display: block !important; }
     /* Conductor + players' tablets work in portrait too (owner 2026-10-20). */
     html.rp-conductor #rotate-overlay { display: none !important; }
@@ -587,6 +587,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="/piano/app.js?v451-1793908184" defer></script>
+  <script src="/piano/app.js?v451-1793910043" defer></script>
 </body>
 </html>
