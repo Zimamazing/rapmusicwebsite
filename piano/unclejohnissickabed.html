@@ -138,9 +138,12 @@
       // The owner's iPad views localhost through the Cloudflare tunnel at this
       // host — treat it as a dev origin so edits auto-reload there too. The LIVE
       // site is readandplaymusic.app (NOT conductor.*), so it stays inert.
-      || h === 'conductor.readandplaymusic.app';
+      || h === 'conductor.readandplaymusic.app' || h === 'mirror.readandplaymusic.app';
     if (!isDev) return;
-    function paused() { return localStorage.getItem('rpmPauseReload') === '1'; }
+    // The hold only counts where its on-screen control shows (the edit page). A hold left on from editing
+    // used to freeze the play page on an old copy with no visible way out (owner 2026-11-03: "fix the
+    // pause button i've been asking you to fix" - her tab never received the fix).
+    function paused() { return window.__RPM_READONLY__ === false && localStorage.getItem('rpmPauseReload') === '1'; }
     function start() {
       var s = document.querySelector('script[src^="/app.js"]');
       var m = s && s.getAttribute('src').match(/app\.js\?(.+)$/);
@@ -256,8 +259,19 @@
         } else if (!slot && box.parentNode !== document.body) {
           document.body.appendChild(box); box.style.cssText = floating;
         }
+        // Under the R&P logo (owner 2026-11-05: "put the claude undo redo pill under the R&P icon",
+        // "i don't like it covering the piano"). Follows the logo as the centred toolbar moves.
+        if (!slot) {
+          var logo = document.querySelector('[data-rp-logo]');
+          var lr = logo && logo.getBoundingClientRect();
+          if (lr && lr.width) {
+            box.style.bottom = 'auto';
+            box.style.top = Math.round(lr.bottom + 14) + 'px';
+            box.style.left = Math.max(4, Math.round(lr.left)) + 'px';
+          } else { box.style.bottom = 'auto'; box.style.top = '72px'; box.style.left = '12px'; } // logo hidden (phone menu closed): still top-left, never over the piano
+        }
       }
-      place(); setInterval(place, 700);
+      place(); setInterval(place, 700); window.addEventListener('resize', place);
       refresh(); setInterval(refresh, 3000);
     }
     function init() { start(); control(); undoTab(); }
@@ -295,13 +309,20 @@
     }
     /* Phones and tablets may be held either way to study music - the user chooses (owner 2026-11-01). Only a
        computer's window (mouse or trackpad) narrowed to taller than wide still asks to be made wider. */
-    @media (orientation: portrait) and (pointer: fine) {
-      #rotate-overlay { display: flex; }
-      #root { display: none; }
-    }
+    /* The computer "Please widen your window" message is retired (owner 2026-11-03: "remove the Please widen
+       your window ... notification ... we are veering away from the scroll only layout"). */
     /* (any touch screen - an iPad with a trackpad keyboard or a pencil may report a fine pointer - is a phone or
        tablet: never the message) */
     html.rp-touch #rotate-overlay { display: none !important; }
+    /* Piano toolbar, Mac + iPad (owner 2026-11-02: "they're too big" ... "magnify the button when the user hovers
+       on it" ... "keep the icons small"): buttons at 75% (40 -> 30), Learn + Practice keep their size; hovering a
+       button grows it like the Dock without moving its neighbours. Phone and other instruments unchanged. */
+    .rp-dock button:not(.rp-keep), .rp-dock input, .rp-dock select { zoom: 0.75; }
+    .rp-dock [title="Transpose"] > :not(button) { zoom: 0.75; }
+    .rp-dock button:not(.rp-keep) { transition: transform 0.12s ease; transform-origin: center center; }
+    @media (hover: hover) {
+      .rp-dock button:not(.rp-keep):not(:disabled):hover { transform: scale(1.4); position: relative; z-index: 50; }
+    }
     /* Instant button labels (owner 2026-11-03: "all the labels should appear right away"). */
     #rp-instant-tip { position: fixed; z-index: 100000; pointer-events: none; display: none;
       background: #1f2937; color: #fff; font: 600 12px/1.25 system-ui, -apple-system, sans-serif;
@@ -566,6 +587,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="app.js?v451-1793738040" defer></script>
+  <script src="app.js?v451-1793908184" defer></script>
 </body>
 </html>
