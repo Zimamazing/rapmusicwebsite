@@ -431,16 +431,16 @@
               <circle cx="195" cy="79" r="13.5" fill="var(--b)"/><circle cx="195" cy="79" r="8" fill="#fff"/>
               <circle cx="225" cy="79" r="13.5" fill="var(--c)"/><circle cx="225" cy="79" r="8" fill="#fff"/>
             </g>
-            <!-- Letters centered inside the white inner circles. -->
-            <g text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="#000" font-family="'DM Sans', sans-serif">
-              <text x="15"  y="79">C</text>
-              <text x="45"  y="79">D</text>
-              <text x="75"  y="79">E</text>
-              <text x="105" y="79">F</text>
-              <text x="135" y="79">G</text>
-              <text x="165" y="79">A</text>
-              <text x="195" y="79">B</text>
-              <text x="225" y="79">C</text>
+            <!-- Letters centered inside the white inner circles. dy (not dominant-baseline on the group) so Safari on the iPad centres them too (owner 2026-11-05). -->
+            <g text-anchor="middle" font-size="10" font-weight="700" fill="#000" font-family="'DM Sans', sans-serif">
+              <text x="15" y="79" dy="0.36em">C</text>
+              <text x="45" y="79" dy="0.36em">D</text>
+              <text x="75" y="79" dy="0.36em">E</text>
+              <text x="105" y="79" dy="0.36em">F</text>
+              <text x="135" y="79" dy="0.36em">G</text>
+              <text x="165" y="79" dy="0.36em">A</text>
+              <text x="195" y="79" dy="0.36em">B</text>
+              <text x="225" y="79" dy="0.36em">C</text>
             </g>
           </svg>
         </div>
