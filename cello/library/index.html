@@ -1203,11 +1203,8 @@
     // marked even after switching to "All songs".
     // "+ Add account" is for families using the public library to add their
     // kids' profiles — the admin/edit view doesn't need it.
-    if (!isAdmin) {
-      const addBtn = button(tr('tabAdd'), 'tab add');
-      addBtn.onclick = openAddModal;
-      els.accountsBar.appendChild(addBtn);
-    }
+    // "+ Add account" removed from the public site (owner 2026-11-05: "remove the add account feature in the
+    // live site"). Accounts already made on a device still show and can still be deleted.
 
     if (tab !== 'all' && profiles[tab]) {
       const delBtn = button(tr('tabDelete'), 'tab delete');
