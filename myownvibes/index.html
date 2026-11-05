@@ -317,11 +317,13 @@
     /* Piano toolbar, Mac + iPad (owner 2026-11-02: "they're too big" ... "magnify the button when the user hovers
        on it" ... "keep the icons small"): buttons at 75% (40 -> 30), Learn + Practice keep their size; hovering a
        button grows it like the Dock without moving its neighbours. Phone and other instruments unchanged. */
-    .rp-dock button:not(.rp-keep), .rp-dock input, .rp-dock select { zoom: 0.75; }
-    .rp-dock [title="Transpose"] > :not(button) { zoom: 0.75; }
-    .rp-dock button:not(.rp-keep) { transition: transform 0.12s ease; transform-origin: center center; }
+    /* Owner 2026-11-05: "i want the tool bars a little bigger" - 36 px buttons (40 x 0.9). */
+    .rp-dock button:not(.rp-keep), .rp-dock input, .rp-dock select { zoom: 0.9; }
+    .rp-dock [title="Transpose"] > :not(button) { zoom: 0.9; }
+    /* Every button magnifies on hover, Learn + Practice too (owner 2026-11-05: "Consistency please"). */
+    .rp-dock button { transition: transform 0.12s ease; transform-origin: center center; }
     @media (hover: hover) {
-      .rp-dock button:not(.rp-keep):not(:disabled):hover { transform: scale(1.4); position: relative; z-index: 50; }
+      .rp-dock button:not(:disabled):hover { transform: scale(1.4); position: relative; z-index: 50; }
     }
     /* Instant button labels (owner 2026-11-03: "all the labels should appear right away"). */
     #rp-instant-tip { position: fixed; z-index: 100000; pointer-events: none; display: none;
@@ -587,6 +589,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="/piano/app.js?v451-1793910043" defer></script>
+  <script src="/piano/app.js?v452-1793913142" defer></script>
 </body>
 </html>
