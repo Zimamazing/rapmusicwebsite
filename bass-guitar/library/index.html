@@ -1727,14 +1727,20 @@
         const heart = document.createElement('button');
         heart.className = 'heart';
         heart.setAttribute('aria-label', tr('ariaSave'));
+        // No account needed to like a song (owner 2026-11-05: "remove the add an account screen. people can
+        // just heart it if they like the song"): without a chosen account the heart saves to this device.
+        const _readLikes = () => { try { return JSON.parse(localStorage.getItem('rpmLikedSongs') || '[]'); } catch (_) { return []; } };
         const savedForActive = activeName && profiles[activeName]
           ? (profiles[activeName].songs || []).includes(title)
-          : false;
+          : _readLikes().includes(title);
         heart.textContent = savedForActive ? '❤️' : '🤍';
         heart.onclick = (e) => {
           e.preventDefault(); e.stopPropagation();
           if (!activeName || !profiles[activeName]) {
-            openAddModal();
+            const likes = _readLikes();
+            const next = likes.includes(title) ? likes.filter(t => t !== title) : [...likes, title];
+            try { localStorage.setItem('rpmLikedSongs', JSON.stringify(next)); } catch (_) {}
+            heart.textContent = next.includes(title) ? '❤️' : '🤍';
             return;
           }
           const list = profiles[activeName].songs || [];
