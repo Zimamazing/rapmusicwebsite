@@ -17,6 +17,8 @@
   function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
   function load() {
     if (isOwner()) return;
+    // Claude's test browser (headless Chrome on the owner's Mac) is never counted either (owner 2026-11-05).
+    if (navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent)) return;
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
