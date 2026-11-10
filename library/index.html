@@ -874,10 +874,21 @@
     window.location.pathname.match(/\/([a-z-]+)\/library\/?$/);
   const _pathInstrument = _pathMatch ? _pathMatch[1].toLowerCase() : '';
   const instrumentParam = _queryInstrument || _pathInstrument;
-  const instrument = KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
-  if (instrument === 'conductor') (function () {
+  // readandplaymusic.app/vocalensemble (owner 2026-11-10): the conductor's Vocal Ensemble songs only, for its members
+  const IS_ENSEMBLE = window.__RPM_ENSEMBLE__ === true;
+  const instrument = IS_ENSEMBLE ? 'conductor' : KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
+  if (instrument === 'conductor' && !IS_ENSEMBLE) (function () {   // (no Add song / rehearsal on the Vocal Ensemble page)
     const $ = (id) => document.getElementById(id);
     const bar = $('rehearsalBar'), btn = $('rehearsalBtn'), pop = $('rehearsalPop');
+    // Add song (owner 2026-11-05: "there's no button to add a song"): opens the score page ready to take a
+    // sheet-music file; the song is kept in this library as its printed sheet.
+    if (isAdmin) {
+      const add = document.createElement('a');
+      add.href = '/conductor/play?add=1'; add.textContent = '🎼 Add song';
+      add.title = 'Add a song from its sheet-music file (.mxl / .musicxml / .xml)';
+      add.style.cssText = 'display:inline-flex;align-items:center;height:40px;padding:0 16px;margin:4px 0 14px;border-radius:999px;border:1px solid #9B6BFF;background:#9B6BFF;color:#fff;font-weight:700;font-size:15px;text-decoration:none';
+      bar.parentNode.insertBefore(add, bar);
+    }
     let code = null;
     const paint = () => {
       btn.textContent = code ? '📡 ' + code : '📡 Start rehearsal';
@@ -1148,6 +1159,10 @@
   let tab = isAdmin
     ? (activeName && profiles[activeName] ? activeName : 'all')
     : 'all';
+  if (IS_ENSEMBLE) {
+    tab = 'cpill:vocal-ensemble';
+    // (the page reads "Song Library" like the others; Vocal Ensemble is only its address - owner 2026-11-10)
+  }
   // ?folder=<name> URL param — when a pill on another library deep-links
   // here ("/keyboard/library?folder=Michael+Aaron+Lessons+Book+1"), open
   // that folder's tab on load instead of the default "All Songs" view.
@@ -1198,6 +1213,7 @@
   function renderTabs() {
     els.tabs.innerHTML = '';
     els.accountsBar.innerHTML = '';
+    if (IS_ENSEMBLE) { tab = 'cpill:vocal-ensemble'; return; }
 
     // Top row (under the logo): + Add, then - Delete, then profile chips.
     // A chip is highlighted when it's the active account (activeName), not
@@ -1316,8 +1332,11 @@
     if (_pillShows(s => ((s.composer || '').toLowerCase()).includes('r&p music'))) els.tabs.appendChild(rpBtn);
 
     // Admin-only: "Unpublished" pill — quick scan of songs not yet on
-    // the live site. Hidden in baby/public mode.
-    if (isAdmin) {
+    // the live site. Hidden in baby/public mode, and on the conductor's library on the LIVE site only - the
+    // localhost conductor keeps it (owner 2026-11-10: "remove the unpublished pill on the live site NOT ON THE
+    // LOCALHOST").
+    const _liveConductor = instrument === 'conductor' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
+    if (isAdmin && !_liveConductor) {
       const unpubCount = allSongs.filter(s => !_isShown(s)).length;
       const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
       const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
@@ -1345,6 +1364,16 @@
       if (tab === 'lessons') lessBtn.style.background = 'var(--accent)';
       lessBtn.onclick = () => { tab = 'lessons'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
       if (isAdmin || (pillCfg.lessonsPublic && _pillShows(s => s.lessonPill === true))) els.tabs.appendChild(lessBtn);
+    }
+    if (instrument === 'conductor') {
+      CONDUCTOR_PILLS.forEach(function (p) {
+        const tk = 'cpill:' + p.key;
+        const n = allSongs.filter(s => _condPillOk(s, p.key)).length;
+        const b = button(p.label + (showCounts ? ' (' + n + ')' : ''), 'tab' + (tab === tk ? ' active' : ''));
+        if (tab === tk) b.style.background = 'var(--accent)';
+        b.onclick = () => { tab = tk; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
+        if (_pillShows(s => _condPillOk(s, p.key))) els.tabs.appendChild(b);
+      });
     }
     // Dev-only folder pills. One pill per known curriculum folder. Pills
     // are localhost-only (hidden on the deployed site) so the live library
@@ -1418,6 +1447,16 @@
     if (s.sourceKind) return s.sourceKind;
     return 'other';
   }
+  // Conductor pills (owner 2026-11-10: "add pacem and i wanna thank you lord in a pill called vocal ensemble").
+  // Kept here by title, so saving a song's sheet never drops it from its pill.
+  var CONDUCTOR_PILLS = [
+    { key: 'vocal-ensemble', label: '🎤 Vocal Ensemble', titles: ['PACEM', 'I WANNA THANK YOU, LORD'] },
+  ];
+  function _condPillOk(s, key) {
+    var p = CONDUCTOR_PILLS.find(function (x) { return x.key === key; });
+    var t = ((s && s.title) || '').trim().toUpperCase();
+    return !!p && p.titles.indexOf(t) >= 0;
+  }
   function _lessonOk(s) { return !!s && s.lessonPill === true && (isAdmin || (pillCfg.lessonsPublic && _isPublic(s))); }
   function _unpubOk(s) { return !_isShown(s) && (unpubKind === 'all' || _kindOf(s) === unpubKind); }
 
@@ -1437,6 +1476,8 @@
       pool = pool.filter(_unpubOk);
     } else if (tab === 'lessons') {
       pool = pool.filter(_lessonOk);
+    } else if (tab && tab.startsWith('cpill:')) {
+      pool = pool.filter(s => _condPillOk(s, tab.slice(6)));
     } else if (tab !== 'all' && profiles[tab]) {
       const saved = new Set(profiles[tab].songs || []);
       pool = pool.filter(s => saved.has((s.title || '').trim()));
@@ -1481,6 +1522,8 @@
       visible = visible.filter(_unpubOk);
     } else if (tab === 'lessons') {
       visible = visible.filter(_lessonOk);
+    } else if (tab && tab.startsWith('cpill:')) {
+      visible = visible.filter(s => _condPillOk(s, tab.slice(6)));
     } else if (tab && tab.startsWith('folder:')) {
       const dir = tab.slice('folder:'.length);
       visible = visible.filter(s => s.folder === dir);
@@ -1610,6 +1653,9 @@
         // Admin card: explicit Open / Publish / Delete instead of the heart.
         const actions = document.createElement('div');
         actions.className = 'admin-actions';
+        // The live site's conductor library shows no buttons; tapping the card opens the song
+        // (owner 2026-11-10: "remove the other buttons open unpublish and publish live to the songs in the live site conductor").
+        const _liveCondCard = instrument === 'conductor' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
 
         const openBtn = document.createElement('button');
         openBtn.className = 'action-btn action-open';
@@ -1622,7 +1668,7 @@
           }
           window.location.href = editPrefix + '?song=' + encodeURIComponent(title);
         };
-        actions.appendChild(openBtn);
+        if (!_liveCondCard) actions.appendChild(openBtn);
 
         // Publish / Unpublish = LESSONS (students), owner 2026-10-07. Takes effect at once.
         const isPub = _inLessons(song);
@@ -1649,7 +1695,7 @@
             pubBtn.disabled = false;
           }
         };
-        actions.appendChild(pubBtn);
+        if (!_liveCondCard) actions.appendChild(pubBtn);
 
         // 🚀 Publish Live / Unpublish Live = the PUBLIC WEBSITE, owner 2026-10-07. Marks
         // this one song for readandplaymusic.app ("Who wrote this?" copyright check
@@ -1698,7 +1744,7 @@
             liveBtn.textContent = liveLabel;
           }
         };
-        actions.appendChild(liveBtn);
+        if (!_liveCondCard) actions.appendChild(liveBtn);
 
         const delBtn = document.createElement('button');
         delBtn.className = 'action-btn action-delete';
@@ -1723,7 +1769,7 @@
         };
         actions.appendChild(delBtn);
 
-        card.appendChild(actions);
+        if (!_liveCondCard) card.appendChild(actions);   // (live conductor: no buttons - the card is the song, like the piano's live library)
       } else {
         // Baby card: keep the heart for profile favoriting.
         const heart = document.createElement('button');
@@ -1753,7 +1799,7 @@
           renderAlphabet();
           renderSongs();
         };
-        card.appendChild(heart);
+        if (!IS_ENSEMBLE) card.appendChild(heart);
       }
 
       els.songs.appendChild(card);
