@@ -274,7 +274,7 @@
       place(); setInterval(place, 700); window.addEventListener('resize', place);
       refresh(); setInterval(refresh, 3000);
     }
-    function init() { start(); control(); undoTab(); }
+    function init() { start(); control(); }   // undoTab() removed 2026-11-13 at the owner's request
     if (document.readyState === 'complete') init();
     else window.addEventListener('load', init);
   })();
@@ -589,6 +589,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="app.js?v461-1794555870" defer></script>
+  <script src="app.js?v462-1794557976" defer></script>
 </body>
 </html>
