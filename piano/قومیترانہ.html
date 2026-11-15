@@ -138,12 +138,9 @@
       // The owner's iPad views localhost through the Cloudflare tunnel at this
       // host — treat it as a dev origin so edits auto-reload there too. The LIVE
       // site is readandplaymusic.app (NOT conductor.*), so it stays inert.
-      || h === 'conductor.readandplaymusic.app' || h === 'mirror.readandplaymusic.app';
+      || h === 'conductor.readandplaymusic.app';
     if (!isDev) return;
-    // The hold only counts where its on-screen control shows (the edit page). A hold left on from editing
-    // used to freeze the play page on an old copy with no visible way out (owner 2026-11-03: "fix the
-    // pause button i've been asking you to fix" - her tab never received the fix).
-    function paused() { return window.__RPM_READONLY__ === false && localStorage.getItem('rpmPauseReload') === '1'; }
+    function paused() { return localStorage.getItem('rpmPauseReload') === '1'; }
     function start() {
       var s = document.querySelector('script[src^="/app.js"]');
       var m = s && s.getAttribute('src').match(/app\.js\?(.+)$/);
@@ -259,22 +256,11 @@
         } else if (!slot && box.parentNode !== document.body) {
           document.body.appendChild(box); box.style.cssText = floating;
         }
-        // Under the R&P logo (owner 2026-11-05: "put the claude undo redo pill under the R&P icon",
-        // "i don't like it covering the piano"). Follows the logo as the centred toolbar moves.
-        if (!slot) {
-          var logo = document.querySelector('[data-rp-logo]');
-          var lr = logo && logo.getBoundingClientRect();
-          if (lr && lr.width) {
-            box.style.bottom = 'auto';
-            box.style.top = Math.round(lr.bottom + 14) + 'px';
-            box.style.left = Math.max(4, Math.round(lr.left)) + 'px';
-          } else { box.style.bottom = 'auto'; box.style.top = '72px'; box.style.left = '12px'; } // logo hidden (phone menu closed): still top-left, never over the piano
-        }
       }
-      place(); setInterval(place, 700); window.addEventListener('resize', place);
+      place(); setInterval(place, 700);
       refresh(); setInterval(refresh, 3000);
     }
-    function init() { start(); control(); }   // undoTab() removed 2026-11-13 at the owner's request
+    function init() { start(); control(); undoTab(); }
     if (document.readyState === 'complete') init();
     else window.addEventListener('load', init);
   })();
@@ -309,26 +295,13 @@
     }
     /* Phones and tablets may be held either way to study music - the user chooses (owner 2026-11-01). Only a
        computer's window (mouse or trackpad) narrowed to taller than wide still asks to be made wider. */
-    /* The computer "Please widen your window" message is retired (owner 2026-11-03: "remove the Please widen
-       your window ... notification ... we are veering away from the scroll only layout"). */
+    @media (orientation: portrait) and (pointer: fine) {
+      #rotate-overlay { display: flex; }
+      #root { display: none; }
+    }
     /* (any touch screen - an iPad with a trackpad keyboard or a pencil may report a fine pointer - is a phone or
        tablet: never the message) */
     html.rp-touch #rotate-overlay { display: none !important; }
-    /* Piano toolbar, Mac + iPad (owner 2026-11-02: "they're too big" ... "magnify the button when the user hovers
-       on it" ... "keep the icons small"): buttons at 75% (40 -> 30), Learn + Practice keep their size; hovering a
-       button grows it like the Dock without moving its neighbours. Phone and other instruments unchanged. */
-    /* Owner 2026-11-05: "i want the tool bars a little bigger" - 36 px buttons (40 x 0.9). */
-    .rp-dock button:not(.rp-keep), .rp-dock input, .rp-dock select { zoom: 0.9; }
-    .rp-dock [title="Transpose"] > :not(button) { zoom: 0.9; }
-    /* Every button magnifies on hover, Learn + Practice too (owner 2026-11-05: "Consistency please"). */
-    .rp-dock button { transition: transform 0.12s ease; transform-origin: center center; }
-    @media (hover: hover) {
-      .rp-dock button:not(:disabled):hover { transform: scale(1.4); position: relative; z-index: 50; }
-    }
-    /* Instant button labels (owner 2026-11-03: "all the labels should appear right away"). */
-    #rp-instant-tip { position: fixed; z-index: 100000; pointer-events: none; display: none;
-      background: #1f2937; color: #fff; font: 600 12px/1.25 system-ui, -apple-system, sans-serif;
-      padding: 5px 8px; border-radius: 6px; white-space: normal; width: max-content; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
     html.rp-touch #root { display: block !important; }
     /* Conductor + players' tablets work in portrait too (owner 2026-10-20). */
     html.rp-conductor #rotate-overlay { display: none !important; }
@@ -340,45 +313,6 @@
   // Score" — send it to the conductor's song library instead (owner 2026-10-20).
   try { if (window.__RPM_CONDUCTOR__ === true && /^\/conductor\/play\/?$/.test(location.pathname)
             && !new URLSearchParams(location.search).get('song')) location.replace('/conductor/library'); } catch (e) {}</script>
-  <script>
-  // Instant labels (owner 2026-11-03, live from v451): pointing at a button shows its name
-  // straight away, instead of the browser's slow tooltip. The button's title moves into
-  // data-tip while the pointer is on it so the browser's own label never appears too.
-  (function () {
-    try {
-      // Mouse or trackpad only: phones and tablets keep their look.
-      if (!window.matchMedia || !matchMedia('(hover: hover)').matches) return;
-      var SEL = 'button, select, input, a, [role="button"], label';
-      var tip = null, cur = null;
-      function show(el) {
-        var t = el.getAttribute('title');
-        if (t) { el.setAttribute('data-tip', t); el.removeAttribute('title'); }
-        var text = el.getAttribute('data-tip');
-        if (!text) return;
-        if (!tip) { tip = document.createElement('div'); tip.id = 'rp-instant-tip'; document.body.appendChild(tip); }
-        tip.textContent = text; tip.style.display = 'block';
-        var r = el.getBoundingClientRect(), w = tip.offsetWidth, hh = tip.offsetHeight;
-        var x = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2));
-        var y = r.bottom + 6; if (y + hh > innerHeight - 4) y = r.top - hh - 6;
-        tip.style.left = x + 'px'; tip.style.top = y + 'px';
-        cur = el;
-      }
-      function hide() {
-        if (cur && cur.getAttribute('data-tip') && !cur.hasAttribute('title') && !cur.hasAttribute('data-tip-keep')) cur.setAttribute('title', cur.getAttribute('data-tip'));
-        cur = null; if (tip) tip.style.display = 'none';
-      }
-      document.addEventListener('mouseover', function (e) {
-        var el = e.target && e.target.closest ? e.target.closest(SEL) : null;
-        if (el && !el.hasAttribute('title') && !el.hasAttribute('data-tip')) el = null;
-        if (el === cur) return;
-        hide(); if (el) show(el);
-      }, true);
-      document.addEventListener('mousedown', hide, true);
-      document.addEventListener('scroll', hide, true);
-      window.addEventListener('blur', hide);
-    } catch (e) {}
-  })();
-  </script>
 <script>
 /* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
    injection so the owner's own devices are never counted (2026-09-24).
@@ -386,13 +320,11 @@
    owner's; only the word's SHA-256 is stored here. */
 (function () {
   var TOKEN = '7c17140bb4c54274bc8154a3dd5f89e4';
-  var OWNER_HASH = '5581938100251750e9a934314fcf949671dee1855bc6be1c4cdd7e2c2d10c48c';
+  var OWNER_HASH = 'e3b0485486595c4809cda0d11c1003637dac9601a47861c02ce5420bc32d53f2';
   var KEY = 'rpm_owner_no_count';
   function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
   function load() {
     if (isOwner()) return;
-    // Claude's test browser (headless Chrome on the owner's Mac) is never counted either (owner 2026-11-05).
-    if (navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent)) return;
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
@@ -589,6 +521,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="app.js?v462-1794558459" defer></script>
+  <script src="app.js?v449-1794759508" defer></script>
 </body>
 </html>
