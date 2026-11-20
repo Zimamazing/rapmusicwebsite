@@ -924,13 +924,14 @@
     const _home = document.querySelector('a[data-i18n="navHome"]');
     if (_home) _home.setAttribute('href', location.hostname === 'readandplaymusic.app' ? '/conductor' : '/');
     const _app = document.querySelector('a[data-i18n="navLaunchApp"]');
-    if (_app) {
-      const _pi = document.createElement('a');
-      _pi.href = '/piano'; _pi.textContent = '🎹 Piano';
-      _app.parentNode.insertBefore(_pi, _app);
-      // (the old "Live session" sync page is retired - owner 2026-10-30)
-      _app.remove();
-    }
+    // The conductor's library header keeps Home and nothing else (owner,
+    // 2026-11-18: "i also want you to remove the piano link from the song
+    // library display"). The 🎹 Piano link used to be added here; the route to
+    // the instruments is now the Home button on the conductor's own sheet
+    // screen. This branch is the conductor's alone, so every other
+    // instrument's library header is untouched.
+    // (the old "Live session" sync page is retired - owner 2026-10-30)
+    if (_app) _app.remove();
   }
   if (instrument === 'guitar') {
     const _home = document.querySelector('a[data-i18n="navHome"]');
@@ -1905,6 +1906,20 @@
       // Each instrument has its own library. Filter at load so all the
       // downstream tab / letter / search logic operates on the right pool.
       allSongs = raw.filter(songBelongsToInstrument);
+      // The conductor's unpublished scores — transcription drafts — belong to
+      // the EDIT conductor only (owner, 2026-11-18: "transfer all the songs
+      // (except the 3 published ones) to edit conductor library. That's what I
+      // meant by the edit being the HQ of the conductor library"). So outside
+      // outside the secret EDIT url — including plain localhost, which is
+      // admin but is not the edit side — the conductor library lists its
+      // published scores only. Nothing moves on disk, and
+      // `isAdmin` still sees every draft.
+      // Filtered here rather than by asking /api/published, because the
+      // .published/ folder lags behind the songs' own `published` flag and
+      // would drop scores she HAS published.
+      if (instrument === 'conductor' && window.__RPM_LIBRARY_EDIT__ !== true) {
+        allSongs = allSongs.filter(s => s && (s.published === true || s.public === true));
+      }
 
       // On localhost in admin mode, also fetch /api/published (= the live
       // site's source of truth). For each /api/songs entry that has a
