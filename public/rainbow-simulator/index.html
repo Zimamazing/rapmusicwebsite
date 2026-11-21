@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rainbow Simulator</title>
+<style>
+  :root { --bg:#faf7f2; --ink:#1a1a1a; --muted:#6b7280; --card:#fff; --line:#e5e3dd; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  header { padding:20px 24px 8px; }
+  .bow { height:6px; background:linear-gradient(90deg,#ef4444,#f97316,#eab308,#22c55e,#3b82f6,#6366f1,#a855f7); }
+  h1 { margin:0; font-size:26px; } header p { margin:4px 0 0; color:var(--muted); }
+  section { padding:12px 24px 20px; border-top:1px solid var(--line); }
+  h2 { margin:6px 0 12px; font-size:18px; }
+  .row { display:flex; gap:22px; align-items:flex-end; overflow-x:auto; padding-bottom:6px; }
+  figure { margin:0; flex:none; text-align:center; }
+  img { display:block; background:#fff; border:7px solid #111; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.15); object-fit:cover; object-position:top; }
+  figcaption { margin-top:6px; font-weight:600; font-size:13px; } figcaption span { display:block; font-weight:400; color:var(--muted); font-size:12px; }
+</style><script>
+/* Web analytics (Cloudflare) — loaded here instead of Cloudflare's automatic
+   injection so the owner's own devices are never counted (2026-09-24).
+   Opening any page once with ?owner=<word> marks that browser as the
+   owner's; only the word's SHA-256 is stored here. */
+(function () {
+  var TOKEN = '7c17140bb4c54274bc8154a3dd5f89e4';
+  var OWNER_HASH = 'e3b0485486595c4809cda0d11c1003637dac9601a47861c02ce5420bc32d53f2';
+  var KEY = 'rpm_owner_no_count';
+  function isOwner() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
+  function load() {
+    if (isOwner()) return;
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    s.setAttribute('data-cf-beacon', JSON.stringify({ token: TOKEN, spa: true }));
+    document.head.appendChild(s);
+  }
+  function note(text) {
+    var show = function () {
+      var d = document.createElement('div');
+      d.textContent = text;
+      d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#222;color:#fff;font:600 15px system-ui,sans-serif;padding:10px 18px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25)';
+      document.body.appendChild(d);
+      setTimeout(function () { d.remove(); }, 4000);
+    };
+    if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+  }
+  var word = null;
+  try { word = new URLSearchParams(location.search).get('owner'); } catch (e) {}
+  if (!word || !(window.crypto && crypto.subtle)) { load(); return; }
+  crypto.subtle.digest('SHA-256', new TextEncoder().encode(word)).then(function (buf) {
+    var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    if (hex === OWNER_HASH) {
+      try { localStorage.setItem(KEY, '1'); } catch (e) {}
+      note(isOwner() ? 'Owner: not counted \u2713' : 'Could not save \u2014 this browser blocks storage');
+      try { var u = new URL(location.href); u.searchParams.delete('owner'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
+    }
+    load();
+  }, load);
+})();
+</script>
+</head><body>
+<div class="bow"></div>
+<header><h1>Rainbow Simulator</h1><p>How our pages look on each screen — snapshots from this Mac, Oct 20, 2026, 11:20 AM. Click any picture to see it full size.</p></header>
+
+  <section>
+    <h2>Home</h2>
+    <div class="row">
+      <figure><a href="home--iphone-se.png" target="_blank"><img src="home--iphone-se.png" loading="lazy" alt="Home on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="home--iphone-16.png" target="_blank"><img src="home--iphone-16.png" loading="lazy" alt="Home on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="home--iphone-16-sideways.png" target="_blank"><img src="home--iphone-16-sideways.png" loading="lazy" alt="Home on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="home--ipad-upright.png" target="_blank"><img src="home--ipad-upright.png" loading="lazy" alt="Home on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="home--ipad-sideways.png" target="_blank"><img src="home--ipad-sideways.png" loading="lazy" alt="Home on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="home--macbook.png" target="_blank"><img src="home--macbook.png" loading="lazy" alt="Home on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="home--big-desktop.png" target="_blank"><img src="home--big-desktop.png" loading="lazy" alt="Home on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+  <section>
+    <h2>Piano</h2>
+    <div class="row">
+      <figure><a href="piano--iphone-se.png" target="_blank"><img src="piano--iphone-se.png" loading="lazy" alt="Piano on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="piano--iphone-16.png" target="_blank"><img src="piano--iphone-16.png" loading="lazy" alt="Piano on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="piano--iphone-16-sideways.png" target="_blank"><img src="piano--iphone-16-sideways.png" loading="lazy" alt="Piano on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="piano--ipad-upright.png" target="_blank"><img src="piano--ipad-upright.png" loading="lazy" alt="Piano on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="piano--ipad-sideways.png" target="_blank"><img src="piano--ipad-sideways.png" loading="lazy" alt="Piano on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="piano--macbook.png" target="_blank"><img src="piano--macbook.png" loading="lazy" alt="Piano on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="piano--big-desktop.png" target="_blank"><img src="piano--big-desktop.png" loading="lazy" alt="Piano on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+  <section>
+    <h2>Guitar</h2>
+    <div class="row">
+      <figure><a href="guitar--iphone-se.png" target="_blank"><img src="guitar--iphone-se.png" loading="lazy" alt="Guitar on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="guitar--iphone-16.png" target="_blank"><img src="guitar--iphone-16.png" loading="lazy" alt="Guitar on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="guitar--iphone-16-sideways.png" target="_blank"><img src="guitar--iphone-16-sideways.png" loading="lazy" alt="Guitar on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="guitar--ipad-upright.png" target="_blank"><img src="guitar--ipad-upright.png" loading="lazy" alt="Guitar on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="guitar--ipad-sideways.png" target="_blank"><img src="guitar--ipad-sideways.png" loading="lazy" alt="Guitar on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="guitar--macbook.png" target="_blank"><img src="guitar--macbook.png" loading="lazy" alt="Guitar on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="guitar--big-desktop.png" target="_blank"><img src="guitar--big-desktop.png" loading="lazy" alt="Guitar on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+  <section>
+    <h2>Drums</h2>
+    <div class="row">
+      <figure><a href="drums--iphone-se.png" target="_blank"><img src="drums--iphone-se.png" loading="lazy" alt="Drums on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="drums--iphone-16.png" target="_blank"><img src="drums--iphone-16.png" loading="lazy" alt="Drums on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="drums--iphone-16-sideways.png" target="_blank"><img src="drums--iphone-16-sideways.png" loading="lazy" alt="Drums on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="drums--ipad-upright.png" target="_blank"><img src="drums--ipad-upright.png" loading="lazy" alt="Drums on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="drums--ipad-sideways.png" target="_blank"><img src="drums--ipad-sideways.png" loading="lazy" alt="Drums on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="drums--macbook.png" target="_blank"><img src="drums--macbook.png" loading="lazy" alt="Drums on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="drums--big-desktop.png" target="_blank"><img src="drums--big-desktop.png" loading="lazy" alt="Drums on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+  <section>
+    <h2>Song library</h2>
+    <div class="row">
+      <figure><a href="song-library--iphone-se.png" target="_blank"><img src="song-library--iphone-se.png" loading="lazy" alt="Song library on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="song-library--iphone-16.png" target="_blank"><img src="song-library--iphone-16.png" loading="lazy" alt="Song library on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="song-library--iphone-16-sideways.png" target="_blank"><img src="song-library--iphone-16-sideways.png" loading="lazy" alt="Song library on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="song-library--ipad-upright.png" target="_blank"><img src="song-library--ipad-upright.png" loading="lazy" alt="Song library on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="song-library--ipad-sideways.png" target="_blank"><img src="song-library--ipad-sideways.png" loading="lazy" alt="Song library on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="song-library--macbook.png" target="_blank"><img src="song-library--macbook.png" loading="lazy" alt="Song library on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="song-library--big-desktop.png" target="_blank"><img src="song-library--big-desktop.png" loading="lazy" alt="Song library on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+  <section>
+    <h2>Conductor</h2>
+    <div class="row">
+      <figure><a href="conductor--iphone-se.png" target="_blank"><img src="conductor--iphone-se.png" loading="lazy" alt="Conductor on iPhone SE"
+          style="width:146px;height:260px"></a><figcaption>iPhone SE<span>375×667</span></figcaption></figure><figure><a href="conductor--iphone-16.png" target="_blank"><img src="conductor--iphone-16.png" loading="lazy" alt="Conductor on iPhone 16"
+          style="width:120px;height:260px"></a><figcaption>iPhone 16<span>393×852</span></figcaption></figure><figure><a href="conductor--iphone-16-sideways.png" target="_blank"><img src="conductor--iphone-16-sideways.png" loading="lazy" alt="Conductor on iPhone 16 (sideways)"
+          style="width:416px;height:192px"></a><figcaption>iPhone 16 (sideways)<span>852×393</span></figcaption></figure><figure><a href="conductor--ipad-upright.png" target="_blank"><img src="conductor--ipad-upright.png" loading="lazy" alt="Conductor on iPad (upright)"
+          style="width:181px;height:260px"></a><figcaption>iPad (upright)<span>820×1180</span></figcaption></figure><figure><a href="conductor--ipad-sideways.png" target="_blank"><img src="conductor--ipad-sideways.png" loading="lazy" alt="Conductor on iPad (sideways)"
+          style="width:416px;height:289px"></a><figcaption>iPad (sideways)<span>1180×820</span></figcaption></figure><figure><a href="conductor--macbook.png" target="_blank"><img src="conductor--macbook.png" loading="lazy" alt="Conductor on MacBook"
+          style="width:416px;height:260px"></a><figcaption>MacBook<span>1440×900</span></figcaption></figure><figure><a href="conductor--big-desktop.png" target="_blank"><img src="conductor--big-desktop.png" loading="lazy" alt="Conductor on Big desktop"
+          style="width:416px;height:234px"></a><figcaption>Big desktop<span>1920×1080</span></figcaption></figure>
+    </div>
+  </section>
+</body></html>

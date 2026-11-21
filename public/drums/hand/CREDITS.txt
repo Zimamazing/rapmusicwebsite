@@ -1,0 +1,7 @@
+Conga (quinto / conga / tumba) and claves recordings in this folder come from
+VCSL - the Versilian Community Sample Library by Sam Gossner
+(https://github.com/sgossner/VCSL), released under CC0 1.0 (public domain).
+Files are unchanged copies of:
+  Membranophones/Struck Membranophones/Conga/*.wav
+  Idiophones/Struck Idiophones/Claves/*.wav
+Used by the conductor's hand-percussion sounds (rpHandPerc in index.html and conductor-app.html), added 2026-11-07.

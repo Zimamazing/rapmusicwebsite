@@ -1,0 +1,26 @@
+{
+  "name": "Read & Play Music",
+  "short_name": "R&P Music",
+  "description": "Learn to read music by playing — colored notes, rainbow tracker, and songs from around the world. Free in your browser.",
+  "start_url": "/piano/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#ffffff",
+  "theme_color": "#9B6BFF",
+  "categories": ["education", "music", "kids"],
+  "icons": [
+    {
+      "src": "/icon.png?v=2026-05-26",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg?v=2026-05-26",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
