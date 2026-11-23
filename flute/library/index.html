@@ -266,7 +266,7 @@
     background: var(--bg2); color: var(--text2); font-size: 13px; font-weight: 600;
   }
   .sort-bar button.active { background: var(--accent); color: var(--text); border-color: var(--accent); }
-  /* Recent is admin-only; hide it in baby mode. */
+  /* Recent is admin-only; hide it in view-only mode. */
   .sort-bar button[data-sort="recent"] { display: none; }
   .admin-visible .sort-bar button[data-sort="recent"] { display: inline-block; }
 
@@ -804,6 +804,19 @@
   // on the secret URL. In that mode we fetch /api/songs (all + status) and
   // expose search / sort / status badges.
   const isAdmin = window.__RPM_LIBRARY_ADMIN__ === true;
+  // The students' site shows what was PUBLISHED TO LESSONS, not what is on
+  // the public website (owner 2026-11-21: "She should be able to see lesson").
+  // _isPublic is the live-website flag; using it there hid most of the lesson
+  // books from students - of 72 Michael Aaron songs only 30 carry it. The
+  // Worker has already filtered the list to published songs before the page
+  // sees it, so this cannot widen what a student can reach.
+  const _STUDENT_SITE = /lessons/i.test(location.hostname);
+  const _EDIT_SITE = /^edit\./i.test(location.hostname);
+  // readandplaymusic.app itself - the conductor there is the live site, even
+  // though it signs in as the owner.
+  const _LIVE_HOST = /^readandplaymusic\.app$/i.test(location.hostname);
+  const _LOCAL_SITE = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(location.hostname)
+    || /\.local$/i.test(location.hostname);
   if (isAdmin) document.body.classList.add('admin-visible');
 
   // Big rainbow site-deploy button. Owner-only — visible only in admin
@@ -871,10 +884,35 @@
     // /<EDIT_PATH>/<instrument>/library — pull the last segment before /library.
     window.location.pathname.match(/\/([a-z-]+)\/library\/?$/);
   const _pathInstrument = _pathMatch ? _pathMatch[1].toLowerCase() : '';
-  const instrumentParam = _queryInstrument || _pathInstrument;
+  // The Worker names the instrument outright (owner 2026-11-21: the students'
+  // library used to be a SEPARATE, older copy of this page - worker/library-
+  // source.html - which is why fixes made here never reached them). In cloud
+  // mode there is no /<instrument>/library path to read, so the injected name
+  // wins when it is there.
+  const _injectedInstrument = (typeof window !== 'undefined' && window.__INSTRUMENT__)
+    ? String(window.__INSTRUMENT__).toLowerCase() : '';
+  const instrumentParam = _injectedInstrument || _queryInstrument || _pathInstrument;
   // readandplaymusic.app/vocalensemble (owner 2026-11-10): the conductor's Vocal Ensemble songs only, for its members
   const IS_ENSEMBLE = window.__RPM_ENSEMBLE__ === true;
+  // CLOUD MODE (the Worker). Its song API is /api/<instrument>/songs, so the
+  // page's own /api/songs and /api/published calls are pointed at it here, and
+  // the account chips - a Mac-only idea - are hidden. Ported from
+  // worker/library-source.html when the two copies were merged back into one.
+  const IS_CLOUD = (typeof window !== 'undefined' && window.__CLOUD_MODE__ === true);
   const instrument = IS_ENSEMBLE ? 'conductor' : KNOWN_INSTRUMENTS.has(instrumentParam) ? instrumentParam : 'keyboard';
+  if (IS_CLOUD) {
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = function (url, opts) {
+      if (typeof url === 'string') {
+        if (url === '/api/published' || url === '/api/songs') url = '/api/' + instrument + '/songs';
+        else if (url.startsWith('/api/songs/')) url = '/api/' + instrument + '/songs/' + url.slice('/api/songs/'.length);
+      }
+      return _origFetch(url, opts);
+    };
+    const _st = document.createElement('style');
+    _st.textContent = '#accountsBar, .tab.add, .tab.delete { display: none !important; }';
+    document.head.appendChild(_st);
+  }
   if (instrument === 'conductor' && !IS_ENSEMBLE) (function () {   // (no Add song / rehearsal on the Vocal Ensemble page)
     const $ = (id) => document.getElementById(id);
     const bar = $('rehearsalBar'), btn = $('rehearsalBtn'), pop = $('rehearsalPop');
@@ -1119,7 +1157,14 @@
   }
   // Conductor scores open in the VIEW-ONLY score page, never the editor
   // (owner 2026-10-19: "do not open it in the edit page").
-  if (instrument === 'conductor') editPrefix = _studentPrefix + '/conductor/play';
+  // On EDIT, a score opens in the editor - everything there is editable
+  // (owner 2026-11-22: "everything in edit should be editable."). Everywhere
+  // else a conductor score still opens the view-only score page, which is the
+  // 2026-10-19 rule ("do not open it in the edit page") and still right for
+  // the live site and for a player's tablet.
+  if (instrument === 'conductor') {
+    editPrefix = _EDIT_SITE ? '/conductor' : (_studentPrefix + '/conductor/play');
+  }
 
   // --- Embed mode ---
   // When the library is rendered inside the main app's iframe overlay,
@@ -1297,9 +1342,22 @@
 
     // Bottom row (above the song list): All Songs first (LEFT), then R&P
     // Music (RIGHT). User decision 2026-04-29.
-    // Counts are shown ONLY on localhost — on the live site (readandplaymusic.app)
-    // the counts are hidden because public visitors don't need to see them.
-    const showCounts = !/readandplaymusic\.app$/i.test(location.hostname);
+    // Counts are a WORKING number: they belong to the libraries the owner edits
+    // in - this Mac and edit.readandplaymusic.app (owner 2026-11-21: "I need
+    // you to write how many songs are in the pills for the edit library for
+    // the piano"). The public site and the students' site show the names
+    // alone; a visitor has no use for a tally, and edit had been lumped in
+    // with them because its hostname also ends in readandplaymusic.app.
+    // The owner's own libraries show them: this Mac, edit, library.* - anywhere
+    // the page is in admin mode. Hostname tests kept getting this wrong (edit's
+    // name also ends in readandplaymusic.app, which is how it was lumped in
+    // with the public site), so the question asked is simply "is this the
+    // owner's view?". The students' site never shows them, admin or not.
+    // Not on the live site, even signed in as the owner (owner 2026-11-22:
+    // "i want you to remove the total number of songs in the pills for
+    // conductor live site"). The count is a working number for the libraries
+    // she edits in - this Mac and edit.
+    const showCounts = (isAdmin || _LOCAL_SITE) && !_STUDENT_SITE && !_LIVE_HOST;
     const rpCount = allSongs.filter(s => ((s.composer || '').toLowerCase()).includes('r&p music')).length;
     // A pill shows for visitors only when at least ONE of its songs is published
     // live (owner 2026-10-22); the owner's admin view always shows every pill.
@@ -1331,11 +1389,22 @@
     if (_pillShows(s => ((s.composer || '').toLowerCase()).includes('r&p music'))) els.tabs.appendChild(rpBtn);
 
     // Admin-only: "Unpublished" pill — quick scan of songs not yet on
-    // the live site. Hidden in baby/public mode, and on the conductor's library on the LIVE site only - the
+    // the live site. Hidden in view-only mode, and on the conductor's library on the LIVE site only - the
     // localhost conductor keeps it (owner 2026-11-10: "remove the unpublished pill on the live site NOT ON THE
     // LOCALHOST").
-    const _liveConductor = instrument === 'conductor' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
-    if (isAdmin && !_liveConductor) {
+    // edit.* is the owner's HQ, not the live site: the rule was "remove the
+    // unpublished pill on the live site NOT ON THE LOCALHOST" (owner
+    // 2026-11-10), and the edit conductor is the side that is SUPPOSED to
+    // hold the drafts. Without this it counted as live, the pill was hidden,
+    // and an unpublished score had no tab that could show it (owner
+    // 2026-11-19: "He is Lord is not in edit conductor").
+    const _liveConductor = instrument === 'conductor' && !/^edit\./i.test(location.hostname) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
+    // Never on the students' site, for anyone (owner 2026-11-21: "the students
+    // shouldn't see the unpublished pill at all"). A student session already
+    // has admin false; this also keeps it off the page when the OWNER opens
+    // the students' site, so she sees what they see.
+    const _studentHost = /lessons/i.test(location.hostname);
+    if (isAdmin && !_liveConductor && !_studentHost) {
       const unpubCount = allSongs.filter(s => !_isShown(s)).length;
       const unpubLabel = '📝 Unpublished' + (showCounts ? ' (' + unpubCount + ')' : '');
       const unpubBtn = button(unpubLabel, 'tab unpublished' + (tab === 'unpublished' ? ' active' : ''));
@@ -1362,7 +1431,7 @@
       const lessBtn = button('🎓 Lessons' + (showCounts ? ' (' + lessN + ')' : ''), 'tab lessons' + (tab === 'lessons' ? ' active' : ''));
       if (tab === 'lessons') lessBtn.style.background = 'var(--accent)';
       lessBtn.onclick = () => { tab = 'lessons'; letterFilter = 'all'; renderTabs(); renderAlphabet(); renderSongs(); };
-      if (isAdmin || (pillCfg.lessonsPublic && _pillShows(s => s.lessonPill === true))) els.tabs.appendChild(lessBtn);
+      if (isAdmin || _STUDENT_SITE || (pillCfg.lessonsPublic && _pillShows(s => s.lessonPill === true))) els.tabs.appendChild(lessBtn);
     }
     if (instrument === 'conductor') {
       CONDUCTOR_PILLS.forEach(function (p) {
@@ -1384,17 +1453,27 @@
       const _hostname = location.hostname.toLowerCase();
       const _isLocal = /^localhost$|^127\.0\.0\.1$|^\[?::1\]?$/.test(_hostname) || /\.local$/i.test(_hostname);
       const _isCloud = /lessons/.test(_hostname);
+      // edit.* is the owner's editing host and carries the same pills the Mac
+      // does (owner 2026-11-21: "i want the edit library to have all the pills
+      // contained in localhost"). It was left out when these were written, so
+      // the book folders had no pill there - and edit is where songs are added
+      // now, which made them unreachable except by search.
+      const _isEditHost = /^edit\./i.test(_hostname);
       // Folder + cloud-library pills show on the owner's private envs
-      // (localhost + lessons), NOT on the public live site.
-      if (instrument === 'keyboard' && (_isLocal || _isCloud)) {
+      // (localhost, edit, lessons), NOT on the public live site.
+      if (instrument === 'keyboard' && (_isLocal || _isCloud || _isEditHost)) {
         const CLOUD_FOLDERS = [
           { dir: 'Michael Aaron Lessons Grade 1', label: 'Michael Aaron Lessons Grade 1' },
           { dir: 'Michael Aaron Lessons Grade 2', label: 'Michael Aaron Lessons Grade 2' },
         ];
         for (const f of CLOUD_FOLDERS) {
           const tabKey = 'folder:' + f.dir;
+          // The count is a working number, for the owner's editing library
+          // only (owner 2026-11-21: "I don't want you putting a number on the
+          // Michael Aaron pills. That should only be for edit library").
+          // Students see the book's name alone.
           const cnt = allSongs.filter(s => s.folder === f.dir).length;
-          const fLabel = '📘 ' + f.label + ' (' + cnt + ')';
+          const fLabel = '📘 ' + f.label + (showCounts ? ' (' + cnt + ')' : '');
           const fBtn = button(fLabel, 'tab folder' + (tab === tabKey ? ' active' : ''));
           if (tab === tabKey) fBtn.style.background = 'var(--accent)';
           // Always filter in-page — songs live in the local library on
@@ -1439,7 +1518,7 @@
   // website. So for the owner, "published / unpublished" in the tabs and on the card
   // means lessons. The public site has no admin view and keeps the website flag.
   function _inLessons(s) { return !!s && (s.published === true || s.published === 'true'); }
-  function _isShown(s) { return isAdmin ? _inLessons(s) : _isPublic(s); }
+  function _isShown(s) { return (isAdmin || _STUDENT_SITE) ? _inLessons(s) : _isPublic(s); }
   // Folders inside Unpublished (owner 2026-10-22): where a transcribed song came from.
   var unpubKind = 'all';
   function _kindOf(s) {
@@ -1456,7 +1535,7 @@
     var t = ((s && s.title) || '').trim().toUpperCase();
     return !!p && p.titles.indexOf(t) >= 0;
   }
-  function _lessonOk(s) { return !!s && s.lessonPill === true && (isAdmin || (pillCfg.lessonsPublic && _isPublic(s))); }
+  function _lessonOk(s) { return !!s && s.lessonPill === true && (isAdmin || _STUDENT_SITE || (pillCfg.lessonsPublic && _isPublic(s))); }
   function _unpubOk(s) { return !_isShown(s) && (unpubKind === 'all' || _kindOf(s) === unpubKind); }
 
   // --- Render: A-Z filter strip ---
@@ -1654,7 +1733,10 @@
         actions.className = 'admin-actions';
         // The live site's conductor library shows no buttons; tapping the card opens the song
         // (owner 2026-11-10: "remove the other buttons open unpublish and publish live to the songs in the live site conductor").
-        const _liveCondCard = instrument === 'conductor' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
+        // edit.* is the editing host, not the live site — it keeps every button
+        // (owner 2026-11-20: "all the songs in the edit library should have the
+        // open, publish, publish live and delete buttons").
+        const _liveCondCard = instrument === 'conductor' && !/^edit\./i.test(location.hostname) && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && !/\.local$/.test(location.hostname) && !/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(location.hostname);
 
         const openBtn = document.createElement('button');
         openBtn.className = 'action-btn action-open';
@@ -1770,7 +1852,7 @@
 
         if (!_liveCondCard) card.appendChild(actions);   // (live conductor: no buttons - the card is the song, like the piano's live library)
       } else {
-        // Baby card: keep the heart for profile favoriting.
+        // Public card: keep the heart for profile favoriting.
         const heart = document.createElement('button');
         heart.className = 'heart';
         heart.setAttribute('aria-label', tr('ariaSave'));
@@ -1910,14 +1992,25 @@
       // the EDIT conductor only (owner, 2026-11-18: "transfer all the songs
       // (except the 3 published ones) to edit conductor library. That's what I
       // meant by the edit being the HQ of the conductor library"). So outside
-      // outside the secret EDIT url — including plain localhost, which is
+      // the secret EDIT url — including plain localhost, which is
       // admin but is not the edit side — the conductor library lists its
-      // published scores only. Nothing moves on disk, and
-      // `isAdmin` still sees every draft.
+      // published scores only. Nothing moves on disk; the drafts stay on the
+      // Mac and in the library repo, they are just not listed here.
       // Filtered here rather than by asking /api/published, because the
       // .published/ folder lags behind the songs' own `published` flag and
       // would drop scores she HAS published.
-      if (instrument === 'conductor' && window.__RPM_LIBRARY_EDIT__ !== true) {
+      // The edit SIDE is recognised two ways, and either is enough. The
+      // hostname test is the reliable one: edit.readandplaymusic.app is the
+      // edit conductor, full stop, and it needs nothing injected into the
+      // page to know that. The flag covers the Mac's secret edit URL, which
+      // is a path on localhost and so has no hostname to test. Relying on the
+      // flag ALONE hid He Is Lord from the edit library (owner 2026-11-19:
+      // "it's nowhere in the edit library") — the injected flag never
+      // arrived, and the drafts were filtered out on the one site that is
+      // supposed to show them.
+      const _isEditSide = window.__RPM_LIBRARY_EDIT__ === true
+        || /^edit\./i.test(location.hostname);
+      if (instrument === 'conductor' && !_isEditSide) {
         allSongs = allSongs.filter(s => s && (s.published === true || s.public === true));
       }
 

@@ -276,6 +276,85 @@ var PLUCKED_STRING_SAMPLES = {
   "A#5": "As5.mp3"
 };
 var PLUCKED_STRING_SAMPLES_BASE_URL = "https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-nylon/";
+var HARMONICA_HOLES = {
+  "C4": { hole: 1, dir: "blow" },
+  "D4": { hole: 1, dir: "draw" },
+  "E4": { hole: 2, dir: "blow" },
+  "G4": { hole: 2, dir: "draw" },
+  "B4": { hole: 3, dir: "draw" },
+  "C5": { hole: 4, dir: "blow" },
+  "D5": { hole: 4, dir: "draw" },
+  "E5": { hole: 5, dir: "blow" },
+  "F5": { hole: 5, dir: "draw" },
+  "G5": { hole: 6, dir: "blow" },
+  "A5": { hole: 6, dir: "draw" },
+  "B5": { hole: 7, dir: "draw" },
+  "C6": { hole: 7, dir: "blow" },
+  "D6": { hole: 8, dir: "draw" },
+  "E6": { hole: 8, dir: "blow" },
+  "F6": { hole: 9, dir: "draw" },
+  "G6": { hole: 9, dir: "blow" },
+  "A6": { hole: 10, dir: "draw" },
+  "C7": { hole: 10, dir: "blow" }
+};
+var HARMONICA_SAMPLES = {
+  C3: "C4.mp3",
+  D3: "D4.mp3",
+  E3: "E4.mp3",
+  G3: "G4.mp3",
+  B3: "B4.mp3",
+  C4: "C5.mp3",
+  D4: "D5.mp3",
+  E4: "E5.mp3",
+  F4: "F5.mp3",
+  G4: "G5.mp3",
+  A4: "A5.mp3",
+  B4: "B5.mp3",
+  C5: "C6.mp3",
+  D5: "D6.mp3",
+  E5: "E6.mp3",
+  F5: "F6.mp3",
+  G5: "G6.mp3",
+  A5: "A6.mp3",
+  C6: "C7.mp3"
+};
+var HARMONICA_SAMPLES_BASE_URL = "/public/harmonica/";
+function harmonicaDetectPitch(buf, sampleRate) {
+  var n = buf.length, half = n >> 1;
+  var sum = 0;
+  for (var i = 0; i < n; i++) sum += buf[i] * buf[i];
+  if (Math.sqrt(sum / n) < 0.015) return 0;
+  var minTau = Math.max(2, Math.floor(sampleRate / 2200));
+  var maxTau = Math.min(half - 1, Math.floor(sampleRate / 200));
+  var cmnd = new Float32Array(maxTau + 1);
+  cmnd[0] = 1;
+  var running = 0;
+  for (var tau = 1; tau <= maxTau; tau++) {
+    var d = 0;
+    for (var j = 0; j < half; j++) {
+      var x = buf[j] - buf[j + tau];
+      d += x * x;
+    }
+    running += d;
+    cmnd[tau] = running === 0 ? 1 : d * tau / running;
+  }
+  var tau = -1;
+  for (var t = minTau; t <= maxTau; t++) {
+    if (cmnd[t] < 0.15) {
+      while (t + 1 <= maxTau && cmnd[t + 1] < cmnd[t]) t++;
+      tau = t;
+      break;
+    }
+  }
+  if (tau < 0) return 0;
+  var better = tau;
+  if (tau > 1 && tau < maxTau) {
+    var a = cmnd[tau - 1], b = cmnd[tau], c = cmnd[tau + 1];
+    var den = a + c - 2 * b;
+    if (den !== 0) better = tau + (a - c) / (2 * den);
+  }
+  return sampleRate / better;
+}
 var RECORDER_FINGERING = {
   "C4": { keys: [1, 2, 3, 4, 5, 6], thumb: true, eb: true },
   "C#4": { keys: [1, 2, 3, 4, 5, 6], thumb: true, eb: false },
@@ -483,6 +562,26 @@ var TUBA_IMAGE_CONFIG = {
   imageSrc: "/public/tuba.png",
   alt: "Tuba",
   aspectRatio: 1996 / 1232
+};
+var INSTRUMENT_VERSIONS = {
+  "harmonica": { v: 49, updated: "2026-11-19" },
+  "keyboard": { v: 1154, updated: "2026-11-19" },
+  "guitar": { v: 78, updated: "2026-11-19" },
+  "drums": { v: 266, updated: "2026-11-19" },
+  "ukulele": { v: 63, updated: "2026-11-19" },
+  "bass-guitar": { v: 63, updated: "2026-11-19" },
+  "violin": { v: 63, updated: "2026-11-19" },
+  "viola": { v: 63, updated: "2026-11-19" },
+  "cello": { v: 64, updated: "2026-11-19" },
+  "contrabass": { v: 62, updated: "2026-11-19" },
+  "mandolin": { v: 62, updated: "2026-11-19" },
+  "banjo": { v: 62, updated: "2026-11-19" },
+  "flute": { v: 63, updated: "2026-11-19" },
+  "recorder": { v: 63, updated: "2026-11-19" },
+  "saxophone": { v: 63, updated: "2026-11-19" },
+  "trumpet": { v: 63, updated: "2026-11-19" },
+  "euphonium": { v: 63, updated: "2026-11-19" },
+  "tuba": { v: 63, updated: "2026-11-19" }
 };
 var { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } = React;
 var APP_T = {
@@ -3432,7 +3531,7 @@ function MusicNotationEditor() {
         if (!celebrationAudioRef.current) {
           var a = new Audio("/public/celebration.mp3");
           a.preload = "auto";
-          a.volume = 1;
+          a.volume = 0.71;
           celebrationAudioRef.current = a;
         }
       } catch (e) {
@@ -4733,18 +4832,18 @@ function MusicNotationEditor() {
                     var src = ctx.createBufferSource();
                     src.buffer = buf;
                     var gain = ctx.createGain();
-                    gain.gain.value = 2.5;
+                    gain.gain.value = 0.71;
                     src.connect(gain).connect(ctx.destination);
                     src.start(0);
                   } else {
                     var audio = celebrationAudioRef.current;
                     if (!audio) {
                       audio = new Audio("/public/celebration.mp3");
-                      audio.volume = 1;
+                      audio.volume = 0.71;
                       celebrationAudioRef.current = audio;
                     }
                     audio.currentTime = 0;
-                    audio.volume = 0.9;
+                    audio.volume = 0.71;
                     audio.play().catch(() => {
                     });
                   }
@@ -5705,10 +5804,10 @@ function MusicNotationEditor() {
   }, [browsePath, newFolderName, navigateTo]);
   useEffect(() => {
     var urlHasSong = new URLSearchParams(window.location.search).has("song");
-    var isBabyMode = typeof window !== "undefined" && window.__RPM_READONLY__ !== false;
+    var isViewOnly = typeof window !== "undefined" && window.__RPM_READONLY__ !== false;
     var isJamsMode2 = typeof window !== "undefined" && window.__RPM_JAMS__ === true;
     (async () => {
-      if (!isBabyMode) {
+      if (!isViewOnly) {
         var dir = await window.rapmusicAPI.getDirectory();
         if (dir) setSaveDir(dir);
         var songs = await window.rapmusicAPI.listSongs();
@@ -12460,7 +12559,7 @@ function MusicNotationEditor() {
         // Mobile: horizontal auto (SVG wider than viewport).
         // Edit mode on widescreen: vertical auto so the taller SVG can
         // scroll to reach ledger-line notes above + below the staff.
-        // Baby/play mode: hidden (view is static).
+        // View-only mode: hidden (view is static).
         overflow: isMobile ? "auto" : !childLock ? "auto" : "hidden",
         WebkitOverflowScrolling: "touch",
         padding: isMobile ? "2px 0" : "0",
