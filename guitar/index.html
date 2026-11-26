@@ -903,5 +903,33 @@
   })();
 </script>
 <script src="/public/title-kern.js?v=2026-11-02b" defer></script>
+<script>
+/* fit-title-to-width (owner 2026-11-26: "everything should fit to width").
+   The page title ("Read&Play <Instrument>") and the "Click Launch to ..." title
+   stay on ONE line and shrink to fit the screen. It only ever shrinks, and only
+   when the name is too wide, so it works for any instrument name and language. */
+(function () {
+  function fit() {
+    var h = document.querySelector('.hero h1');
+    if (h) {
+      h.style.whiteSpace = 'nowrap'; h.style.fontSize = '';
+      var s = parseFloat(getComputedStyle(h).fontSize), a = h.clientWidth, n = h.scrollWidth;
+      if (n > a) h.style.fontSize = (s * a / n * 0.97) + 'px';
+    }
+    var t = document.querySelector('.install-title'), b = t && t.querySelector('.brand-text');
+    if (b) {
+      b.style.whiteSpace = 'nowrap'; b.style.fontSize = '';
+      var ts = parseFloat(getComputedStyle(t).fontSize), bs = parseFloat(getComputedStyle(b).fontSize);
+      var avail = t.clientWidth - 0.4 * ts, w = b.getBoundingClientRect().width;
+      if (w > avail) b.style.fontSize = (bs * avail / w * 0.97) + 'px';
+    }
+  }
+  fit();
+  window.addEventListener('load', fit);
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', fit);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+})();
+</script>
 </body>
 </html>
