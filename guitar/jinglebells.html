@@ -141,6 +141,27 @@
       // site is readandplaymusic.app (NOT conductor.*), so it stays inert.
       || h === 'conductor.readandplaymusic.app' || h === 'mirror.readandplaymusic.app';
     if (!isDev) return;
+    // Dev pages only: a crash used to leave a blank white screen with no clue (owner 2026-11-27: "the whole screen is
+    // white" on the mirror phone). Now the error is printed on the screen so a photo of it says what broke.
+    (function () {
+      function show(msg) {
+        try {
+          var d = document.getElementById('rpm-err') || document.createElement('div');
+          d.id = 'rpm-err';
+          d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;max-height:60vh;overflow:auto;'
+            + 'background:#7f1d1d;color:#fff;font:12px/1.35 ui-monospace,Menlo,monospace;padding:10px;white-space:pre-wrap;word-break:break-word;';
+          d.textContent = (d.textContent ? d.textContent + '\n\n' : 'ERROR (dev only)\n') + String(msg).slice(0, 1200);
+          if (!d.parentNode) (document.body || document.documentElement).appendChild(d);
+        } catch (e) {}
+      }
+      window.addEventListener('error', function (e) {
+        show((e.message || 'error') + '\n' + (e.filename || '').split('/').pop() + ':' + e.lineno + ':' + e.colno
+          + '\n' + ((e.error && e.error.stack) || '').split('\n').slice(0, 6).join('\n'));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason; show('Promise: ' + ((r && (r.stack || r.message)) || r));
+      });
+    })();
     // The hold only counts where its on-screen control shows (the edit page). A hold left on from editing
     // used to freeze the play page on an old copy with no visible way out (owner 2026-11-03: "fix the
     // pause button i've been asking you to fix" - her tab never received the fix).
@@ -594,6 +615,6 @@
   return { EXTENSIONS, accept: EXTENSIONS.join(','), read, isMusicXml };
 });
   </script>
-  <script src="/piano/app.js?v464-1795832075" defer></script>
+  <script src="/piano/app.js?v464-1795843628" defer></script>
 </body>
 </html>
